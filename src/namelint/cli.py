@@ -22,6 +22,13 @@ SKIP_DIRS = frozenset(
     {".git", ".venv", "venv", "__pycache__", "node_modules", ".tox", "build", "dist"}
 )
 
+# What `ast.parse` raises on input it cannot turn into a tree. A corpus
+# run meets more than bad syntax: CPython's own test suite carries
+# fixtures that raise `ValueError`, and a deeply nested literal raises
+# `RecursionError`. One such file must not end a run over 23,000
+# functions, which is what happened the first time this was measured.
+UNPARSABLE = (SyntaxError, ValueError, RecursionError, OSError, UnicodeDecodeError)
+
 EXIT_CLEAN = 0
 EXIT_FINDINGS = 1
 EXIT_ERROR = 2
@@ -43,7 +50,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     for path in _python_files(args.paths):
         try:
             tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
-        except (SyntaxError, OSError) as exc:
+        except UNPARSABLE as exc:
             # A file we cannot parse is reported and skipped. Refusing the
             # whole run because one vendored file is Python 2 would make
             # the corpus runs in notes/02-specs.md §6 impossible.

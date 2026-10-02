@@ -51,7 +51,8 @@ def check_uncollected_test(node: Function, ctx: Context) -> Finding | None:
         node.lineno,
         node.col_offset + 1,
         node.name,
-        f"{node.name} asserts but pytest will not collect it; rename to test_{node.name}",
+        f"{node.name} asserts but pytest will not collect it;"
+        f" rename to test_{node.name}",
         evidence="contains an assertion, takes no arguments",
     )
 
@@ -124,7 +125,8 @@ def check_get_performs_io(node: Function, _ctx: Context) -> Finding | None:
         node.lineno,
         node.col_offset + 1,
         node.name,
-        f"{node.name} performs I/O (calls {call}); get_ promises a cheap lookup, use fetch_, load_ or read_",
+        f"{node.name} performs I/O (calls {call}); get_ promises a cheap"
+        " lookup, use fetch_, load_ or read_",
         evidence=f"calls {call}",
     )
 

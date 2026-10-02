@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 
 
-def pytest_collection_modifyitems(config, items):
+def pytest_collection_modifyitems(config, items):  # noqa: ARG001 — pytest matches hook arguments by name, so `config` cannot be renamed
     """Automatically apply markers based on test directory."""
     for item in items:
         # Get the path relative to tests/

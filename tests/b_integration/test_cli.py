@@ -106,3 +106,16 @@ def test_an_unparsable_file_is_skipped_rather_than_fatal(
 
     assert "broken.py: skipped" in captured.err
     assert "NAM106" in captured.out
+
+
+def test_a_file_raising_valueerror_is_skipped(tmp_path: Path, capsys) -> None:
+    """`ast.parse` raises more than `SyntaxError`.
+
+    CPython's own test suite carries fixtures that raise `ValueError`,
+    and the first corpus run died on one after 23,000 functions.
+    """
+    write(tmp_path, "weird.py", "x = 1\x00\n")
+    write(tmp_path, "app.py", DIRTY)
+
+    assert main([str(tmp_path)]) == EXIT_FINDINGS
+    assert "NAM106" in capsys.readouterr().out

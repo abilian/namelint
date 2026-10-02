@@ -1,4 +1,4 @@
-target-version = "py310"
+target-version = "py312"
 # preview = true
 
 lint.select = [
@@ -9,6 +9,7 @@ include = [
     "pyproject.toml",
     "src/**/*.py",
     "tests/**/*.py",
+    "tools/**/*.py",
 ]
 
 lint.extend-ignore = [
@@ -28,6 +29,8 @@ lint.extend-ignore = [
     "COM812", # ...
     "T201", # Print...
     "PERF401", # list comprehension - explicit append loop is clearer
+    "TC003", # deferring stdlib typing imports buys startup time this tool
+             # does not need, and costs checks.py its two-import rule
 
     # Fix later (or not)
     # ...

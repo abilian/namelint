@@ -3,10 +3,19 @@ name = "namelint"
 version = "0.1.0"
 description = "Reports where a Python function's name contradicts its body."
 readme = "README.md"
-license = { text = "MIT" }
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 authors = [{ name = "Abilian SAS" }]
 keywords = ["linter", "naming", "ast", "static-analysis"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Software Development :: Quality Assurance",
+    "Typing :: Typed",
+]
 
 # No runtime dependencies, and that is a design constraint rather than an
 # accident: see notes/02-specs.md §7. The verb table is a build-time
@@ -18,6 +27,9 @@ namelint = "namelint.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/abilian/namelinter"
+Repository = "https://github.com/abilian/namelinter"
+Issues = "https://github.com/abilian/namelinter/issues"
+Changelog = "https://github.com/abilian/namelinter/blob/main/CHANGES.md"
 
 [dependency-groups]
 dev = [
@@ -38,29 +50,34 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/namelint"]
 
+# The sdist carries what a reader or a packager needs. `corpus/` is nine
+# cloned repositories and `calibration/` is a measurement of them: both
+# are reproducible from `tools/calibrate.py`, so neither ships.
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/",
+    "tests/",
+    "tools/",
+    "notes/",
+    "README.md",
+    "CHANGES.md",
+    "LICENSE",
+    "Makefile",
+    "noxfile.py",
+    "ruff.toml",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--import-mode=importlib"
-
-[tool.ruff]
-target-version = "py312"
-src = ["src"]
-
-[tool.ruff.lint]
-select = ["ALL"]
-ignore = [
-    "COM812",  # conflicts with the formatter
-    "D203",    # incompatible with D211
-    "D213",    # incompatible with D212
-    "E501",    # long lines are a judgement call, not a lint
-    "S101",    # assert is how the tests assert
-    "CPY001",  # no per-file copyright headers in this project
-    "TC003",   # deferring stdlib typing imports buys startup time this
-               # tool does not need, and costs `checks.py` its two-import rule
+# Registered because `tests/conftest.py` applies them by directory; an
+# unregistered mark warns on every run.
+markers = [
+    "unit: fast, isolated, no I/O",
+    "integration: component interactions, file I/O",
+    "e2e: full CLI workflows",
 ]
 
-[tool.ruff.lint.per-file-ignores]
-"tests/**" = ["D", "ANN", "PLR2004", "INP001"]
-"tests/fixtures/**" = ["ALL"]
-"tools/**" = ["INP001", "T201"]
-"src/namelint/cli.py" = ["T201"]  # printing is what a CLI does
+# Ruff is configured in `ruff.toml`, which supersedes a `[tool.ruff]`
+# table here wholesale: if both exist only `ruff.toml` is read. Keeping a
+# second copy here would be config that looks live and is not.

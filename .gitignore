@@ -1,16 +1,8 @@
-# Python-generated files
+corpus/
+.venv/
 __pycache__/
-*.py[oc]
-build/
+*.egg-info/
+.ruff_cache/
+.pytest_cache/
 dist/
-wheels/
-*.egg-info
-.coverage
-
-# Virtual environments
-.venv
-.python-version
-
-# Local / secrets / tmp
-.envrc
-/sandbox/
+build/

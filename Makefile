@@ -26,7 +26,7 @@ test-cov:
 clean:
 	rm -rf .pytest_cache .ruff_cache dist build __pycache__ .mypy_cache \
 		.coverage htmlcov .coverage.* *.egg-info
-	adt clean
+	-adt clean
 
 build: clean
 	uv build
