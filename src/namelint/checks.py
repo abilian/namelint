@@ -243,7 +243,7 @@ def _own_body(node: Function) -> Iterator[ast.AST]:
     make its enclosing function look like one, and an assertion inside a
     nested helper would make its enclosing function look like a test.
     """
-    stack = list(node.body)
+    stack: list[ast.AST] = list(node.body)
     while stack:
         current = stack.pop()
         yield current
