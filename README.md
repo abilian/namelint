@@ -108,7 +108,7 @@ The check reads annotations and return shapes, and does no type inference, so an
 
 ### `NAM104` and `NAM105`: what the verb promises about the return
 
-A leading verb is a promise. `total = get_total()` expects a value; `reset_cache()` promises to act and answer nothing. So a value verb must return something (`NAM105`), and a command verb must not (`NAM104`).
+A leading verb is a promise. `total = get_total()` expects a value; `reset_cache()` promises to act and answer nothing. So a value verb must return something (`NAM105`). A command verb must not (`NAM104`).
 
 ```python
 def get_top_level_stats(self):  # NAM105 — no return carries a value
@@ -124,7 +124,8 @@ Value verbs: `get`, `find`, `compute`, `calc`, `calculate`, `count`, `lookup`, `
 
 Silent on:
 
-- private and dunder names, and a bare one-word name such as `get` or `close`, whose contract lives in its type.
+- private and dunder names.
+- a bare one-word name such as `get` or `close`, whose contract lives in its type.
 - an explicit `return None` in a query: importlib's `get_source()` returns None to mean "no source".
 - a query that is a declaration (`@abstractmethod`, `@overload`, a stub body) or that ends by raising.
 - in a command: `return None` as an early exit, `return self` for chaining, a bool literal reporting success, and `return super().set_cookie(...)` passing on the same command.
@@ -174,7 +175,12 @@ class Config:
 
 The whole class name must appear as a run of words, so `CodeContext.update_code_context` matches and `ConfigLoader.config_path` does not.
 
-Silent on test modules and `Test*` classes, private methods, a method named exactly like its class (`Filter.filter`), and a class where three or more methods repeat the name, which is a namespace on purpose (tkinter's `Wm.wm_title`, `Wm.wm_frame`).
+Silent on:
+
+- test modules and `Test*` classes.
+- private methods.
+- a method named exactly like its class (`Filter.filter`).
+- a class where three or more methods repeat the name. That is a namespace on purpose (tkinter's `Wm.wm_title`, `Wm.wm_frame`).
 
 This is the check that most needs the allowlist. A user name is not the same thing as a user's name, and `Style.background_style` returns a different style. Only the author knows which repeat is a slip.
 
@@ -188,7 +194,7 @@ NAM104 = ["update_width", "close_to_*"]
 NAM108 = ["User.user_name", "Style.*_style"]
 ```
 
-An entry matches a function name or `Class.method`, with shell wildcards. It covers only the code it sits under. namelint reads the `pyproject.toml` in the current directory or its nearest parent. An unknown code or a malformed entry exits 2 rather than being ignored. `--json` prints each finding's `qualname`, ready to paste.
+An entry matches a function name or `Class.method`, with shell wildcards. It covers only the code it sits under. namelint reads the `pyproject.toml` in the current directory or its nearest parent. An unknown code or a malformed entry is an error, with exit code 2. `--json` prints each finding's `qualname`, ready to paste.
 
 Two commands write the allowlist for you:
 
@@ -227,7 +233,7 @@ The current run covers 85,368 functions and reports 450 findings:
 | pytest | 0.46 | 0.77 | 0.15 | 0.15 | 0.00 | 0.46 | **7.97** | 0.31 |
 | flask | 0.00 | 0.00 | 0.00 | 0.00 | 0.68 | 1.37 | 0.68 | 1.37 |
 
-Findings per thousand functions, with no allowlist. rich's `NAM104` rate is its copy-and-update `ConsoleOptions` API; click's `NAM105` is its `format_help(ctx, formatter)` family, which writes into the formatter it is given. CPython is pinned to `v3.13.0`, since `main` uses syntax a 3.14 interpreter cannot parse; a run against `main` would measure the interpreter.
+The table counts findings per thousand functions, with no allowlist. rich's `NAM104` rate is its copy-and-update `ConsoleOptions` API; click's `NAM105` is its `format_help(ctx, formatter)` family, which writes into the formatter it is given. CPython is pinned to `v3.13.0`, since `main` uses syntax a 3.14 interpreter cannot parse; a run against `main` would measure the interpreter.
 
 ## As a library
 

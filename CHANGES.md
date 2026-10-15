@@ -3,7 +3,7 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0] - 2026-10-15
 
 ### Added
 
@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `NAM108`: a method whose name repeats its class name as a run of words.
 - An allowlist: `[tool.namelint.allow]` in `pyproject.toml` maps a code to function names or `Class.method` patterns, with shell wildcards.
 - `namelint init` adds an empty `[tool.namelint.allow]` table to `pyproject.toml`; `namelint init --accept-existing` fills it with every current finding, for adopting namelint on an existing codebase. `namelint allow` adds the current findings to the allowlist. Both accept `--select`/`--ignore` and paths, and rewrite only the `[tool.namelint.allow]` table.
-- `--json` output carries `qualname` (`Class.method`), and `Finding` carries `owner`.
+- `--json` output includes `qualname` (`Class.method`). `Finding` has a new `owner` field.
 
 ### Changed
 
