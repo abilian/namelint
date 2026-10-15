@@ -1,6 +1,6 @@
 [project]
 name = "namelint"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Reports where a Python function's name contradicts its body."
 readme = "README.md"
 license = "Apache-2.0"
@@ -47,6 +47,11 @@ dev = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+# One place for the version: `namelint.__version__`, which `--version`
+# prints.
+[tool.hatch.version]
+path = "src/namelint/__init__.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/namelint"]
 
@@ -75,7 +80,6 @@ addopts = "--import-mode=importlib"
 markers = [
     "unit: fast, isolated, no I/O",
     "integration: component interactions, file I/O",
-    "e2e: full CLI workflows",
 ]
 
 # Ruff is configured in `ruff.toml`, which supersedes a `[tool.ruff]`

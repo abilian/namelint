@@ -17,13 +17,13 @@ from importlib.resources import files
 THRESHOLD = 0.9
 
 
-def load_verbs(threshold: float = THRESHOLD) -> frozenset[str]:
-    """Forms whose base-form verb share reaches `threshold`."""
+def load_verbs() -> frozenset[str]:
+    """Forms whose base-form verb share reaches `THRESHOLD`."""
     table = json.loads(files("namelint").joinpath("data/verb_pos.json").read_text())
     return frozenset(
         form
         for form, (verb, total) in table["forms"].items()
-        if verb / total >= threshold
+        if verb / total >= THRESHOLD
     )
 
 

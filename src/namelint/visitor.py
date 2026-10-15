@@ -1,6 +1,6 @@
 """Walks a module and hands each function to the checks.
 
-The signature `check_module(tree, path) -> list[Finding]` is deliberate:
+The signature `lint_module(tree, path) -> list[Finding]` is deliberate:
 it is also flake8's plugin contract, so an adapter later is an entry
 point and a wrapper rather than a second implementation.
 """
@@ -12,16 +12,16 @@ import dataclasses
 from collections.abc import Iterator
 from pathlib import Path
 
-from namelint.checks import Function, check_function
+from namelint.checks import Function, lint_function
 from namelint.finding import Context, Finding
 from namelint.verbs import VERBS
 
 
-def check_module(tree: ast.Module, path: Path) -> list[Finding]:
+def lint_module(tree: ast.Module, path: Path) -> list[Finding]:
     """Every finding in one parsed module."""
     is_test = is_test_module(path)
     found: list[Finding] = []
-    for node, owner in _functions(tree):
+    for node, owner in functions(tree):
         ctx = Context(
             is_test_module=is_test,
             class_name=owner.name if owner else None,
@@ -30,14 +30,14 @@ def check_module(tree: ast.Module, path: Path) -> list[Finding]:
         )
         found += [
             dataclasses.replace(finding, owner=ctx.class_name)
-            for finding in check_function(node, ctx)
+            for finding in lint_function(node, ctx)
         ]
     return sorted(found, key=lambda f: (f.line, f.col, f.code))
 
 
-def check_source(source: str, path: Path) -> list[Finding]:
-    """Run `check_module` over text. Raises `SyntaxError` on unparsable input."""
-    return check_module(ast.parse(source), path)
+def lint_source(source: str, path: Path) -> list[Finding]:
+    """Run `lint_module` over text. Raises `SyntaxError` on unparsable input."""
+    return lint_module(ast.parse(source), path)
 
 
 def is_test_module(path: Path) -> bool:
@@ -52,7 +52,7 @@ def is_test_module(path: Path) -> bool:
     return any(part in {"tests", "test"} for part in path.parts[:-1])
 
 
-def _functions(tree: ast.Module) -> Iterator[tuple[Function, ast.ClassDef | None]]:
+def functions(tree: ast.Module) -> Iterator[tuple[Function, ast.ClassDef | None]]:
     """Every function in the module, with the class it belongs to.
 
     Nested functions are skipped. A closure's name is private to its
@@ -78,4 +78,4 @@ def _methods(owner: ast.ClassDef) -> tuple[str, ...]:
     )
 
 
-__all__ = ["Function", "check_module", "check_source", "is_test_module"]
+__all__ = ["Function", "functions", "is_test_module", "lint_module", "lint_source"]

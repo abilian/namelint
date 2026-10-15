@@ -13,13 +13,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from namelint.visitor import check_source
+from namelint.visitor import lint_source
 
 MODULE = Path("src/app/users.py")
 
 
 def codes(source: str, path: Path = MODULE) -> list[str]:
-    return [finding.code for finding in check_source(source, path)]
+    return [finding.code for finding in lint_source(source, path)]
 
 
 def test_an_annotation_that_is_not_bool_is_reported() -> None:
@@ -134,13 +134,13 @@ def test_an_async_predicate_is_checked_too() -> None:
 
 def test_the_evidence_names_the_annotation() -> None:
     """A finding you can disagree with has to say what it saw."""
-    findings = check_source("def is_ready() -> list[str]:\n    return []\n", MODULE)
+    findings = lint_source("def is_ready() -> list[str]:\n    return []\n", MODULE)
 
     assert findings[0].evidence == "annotated -> list[str]"
 
 
 def test_the_evidence_names_the_returned_shape() -> None:
-    findings = check_source("def has_name():\n    return 'anonymous'\n", MODULE)
+    findings = lint_source("def has_name():\n    return 'anonymous'\n", MODULE)
 
     assert findings[0].evidence == "returns 'anonymous'"
 

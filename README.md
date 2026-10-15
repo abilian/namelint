@@ -22,9 +22,10 @@ No runtime dependencies. That is a constraint the project accepted on purpose: a
 namelint src/                          # lint a tree
 namelint src/app/users.py              # or one file
 namelint --select NAM106 src/          # one check only (repeatable)
-namelint --ignore NAM107 src/          # everything but one (repeatable)
+namelint --ignore NAM108 src/          # everything but one (repeatable)
 namelint --json src/                   # one JSON object per line
 namelint --stats src/                  # counts per check, with a rate
+namelint --no-allowlist src/           # report everything, allowlist or not
 namelint init                          # add an empty allowlist to pyproject.toml
 namelint init --accept-existing        # ...holding every current finding
 namelint allow --select NAM108 src/    # accept the current findings of one check
@@ -38,14 +39,18 @@ src/app/users.py:42:5: NAM106 get_user performs I/O (calls httpx.get); get_ prom
 
 Exit codes: **0** clean, **1** findings, **2** namelint itself failed. A file it cannot parse is reported on stderr and skipped: one Python 2 file in a vendored tree must not end a run over 80,000 functions.
 
-`--stats` serves calibration. It reports per thousand functions, so two codebases of different sizes can be compared:
+`--stats` serves calibration. It reports per thousand functions, so two codebases of different sizes can be compared. Nested functions are not checked, so they are not counted either:
 
 ```
 $ namelint --stats ~/src/cpython/Lib
-functions scanned: 61820
-  NAM101      28     0.45 per 1000
-  NAM106      26     0.42 per 1000
-  NAM107     115     1.86 per 1000
+functions scanned: 51726
+  NAM101      17     0.33 per 1000
+  NAM102       3     0.06 per 1000
+  NAM103      10     0.19 per 1000
+  NAM104      35     0.68 per 1000
+  NAM105      14     0.27 per 1000
+  NAM106      26     0.50 per 1000
+  NAM108      18     0.35 per 1000
 ```
 
 ## The checks
@@ -67,6 +72,7 @@ Silent on:
 - anything outside a test module. A test module is a `test_*.py`, a `*_test.py`, or any file under a `tests/` directory.
 - a decorated function, since that is the shape of a fixture.
 - a `_`-prefixed helper. A leading underscore already says "not collected".
+- a setup or teardown hook: unittest's `setUp`/`tearDown` family and pytest's `setup_module`/`teardown_method` family.
 - a helper that takes the thing it checks; arity is the discriminator, so `assert_ok(response)` stays quiet.
 
 A `with pytest.raises(...)` counts as an assertion.
@@ -145,6 +151,8 @@ It fires on `open`, `Path.read_*`/`write_*`, `urlopen`, DBAPI `execute`/`fetchon
 
 ### `NAM107`: a generator under a non-lazy name
 
+**Opt-in:** this check runs only with `--select NAM107`, because it fires too often to be a default (see below).
+
 A caller who believes they hold a list and actually hold a one-shot iterator writes a bug that surfaces two loops later, far from this function.
 
 ```python
@@ -161,7 +169,7 @@ Silent on:
 - dunders.
 - a `yield` that belongs to a protocol: a pytest fixture, a `@contextmanager`, an `@asynccontextmanager`, a pluggy `@hookimpl` wrapper. In all four the noun name is correct on purpose (`db_session`, `temp_config`, `client`).
 
-**This check is the one currently in question.** It fires at 15.9 per thousand functions in `httpx` and 13.7 in `rich`, far outside what a well-named codebase should produce. The known false-positive class is the undecorated protocol generator: an ABC method where `yield request` *is* the interface. Expect a narrower detector, or a drop to advisory, before 1.0.
+**This check is the one currently in question.** It fires at 17.1 per thousand functions in `httpx` and 14.8 in `rich`, far outside what a well-named codebase should produce. The known false-positive class is the undecorated protocol generator: an ABC method where `yield request` *is* the interface. It stays opt-in until a narrower detector brings that rate down.
 
 ### `NAM108`: a method that repeats its class name
 
@@ -219,34 +227,32 @@ uv run tools/calibrate.py --no-fetch      # re-measure after changing a detector
 
 It shallow-clones CPython's `Lib/`, attrs, pydantic, requests, httpx, rich, click, pytest and flask into `corpus/`, then writes `calibration/summary.md` (the table), `findings.jsonl` (every finding, so two runs can be diffed) and `sample.md` (a seeded random sample per check, with source lines, as checkboxes to adjudicate by hand). The sample is seeded on purpose: measuring a changed detector against a fresh sample measures the sample. Every row records the commit it came from, because a number with no commit behind it is a rumour.
 
-The current run covers 85,368 functions and reports 450 findings:
+The current run covers 71,274 functions and reports 437 findings, every check included:
 
 | Project | NAM101 | NAM102 | NAM103 | NAM104 | NAM105 | NAM106 | NAM107 | NAM108 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| cpython | 0.45 | 0.05 | 0.16 | 0.57 | 0.23 | 0.42 | 1.86 | 0.29 |
-| attrs | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.87 | 0.00 |
-| pydantic | 0.79 | 0.11 | 0.00 | 1.13 | 0.45 | 0.56 | 0.68 | 0.11 |
+| cpython | 0.33 | 0.06 | 0.19 | 0.68 | 0.27 | 0.50 | 2.22 | 0.35 |
+| attrs | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 1.09 | 0.00 |
+| pydantic | 0.98 | 0.14 | 0.00 | 1.40 | 0.56 | 0.70 | 0.84 | 0.14 |
 | requests | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
-| httpx | 0.00 | 0.00 | 0.00 | 0.88 | 0.00 | 0.88 | **15.87** | 2.65 |
-| rich | 0.55 | 0.55 | 0.00 | **6.03** | 0.00 | 0.00 | **13.71** | 2.19 |
-| click | 0.00 | 0.00 | 0.00 | 0.00 | 4.24 | 0.00 | **7.43** | 3.18 |
-| pytest | 0.46 | 0.77 | 0.15 | 0.15 | 0.00 | 0.46 | **7.97** | 0.31 |
-| flask | 0.00 | 0.00 | 0.00 | 0.00 | 0.68 | 1.37 | 0.68 | 1.37 |
+| httpx | 0.00 | 0.00 | 0.00 | 0.95 | 0.00 | 0.95 | **17.08** | 2.85 |
+| rich | 0.59 | 0.59 | 0.00 | **6.49** | 0.00 | 0.00 | **14.75** | 2.36 |
+| click | 0.00 | 0.00 | 0.00 | 0.00 | **6.18** | 0.00 | **10.82** | 4.64 |
+| pytest | 0.17 | 0.84 | 0.17 | 0.17 | 0.00 | 0.50 | **8.72** | 0.34 |
+| flask | 0.00 | 0.00 | 0.00 | 0.00 | 1.17 | 2.33 | 1.17 | 2.33 |
 
 The table counts findings per thousand functions, with no allowlist. rich's `NAM104` rate is its copy-and-update `ConsoleOptions` API; click's `NAM105` is its `format_help(ctx, formatter)` family, which writes into the formatter it is given. CPython is pinned to `v3.13.0`, since `main` uses syntax a 3.14 interpreter cannot parse; a run against `main` would measure the interpreter.
 
 ## As a library
 
-`check_module(tree, path) -> list[Finding]` is also flake8's plugin contract, so a flake8 adapter needs an entry point and a wrapper, with no second copy of the checks. `checks.py` imports nothing beyond `ast` and two frozen records; the verb table reaches it through `Context`. It is a pure function of a node and a `Context`: it touches no filesystem and reads no configuration.
+`lint_module(tree, path) -> list[Finding]` is also flake8's plugin contract, so a flake8 adapter needs an entry point and a wrapper, with no second copy of the checks. `checks.py` imports nothing beyond `ast` and two frozen records; the verb table reaches it through `Context`. It is a pure function of a node and a `Context`: it touches no filesystem and reads no configuration.
 
 ```python
 import ast
 from pathlib import Path
-from namelint.visitor import check_module, check_source
+from namelint.visitor import lint_module, lint_source
 
-for finding in check_source(
-    "def get_user(u):\n    return httpx.get(u)\n", Path("x.py")
-):
+for finding in lint_source("def get_user(u):\n    return httpx.get(u)\n", Path("x.py")):
     print(finding.code, finding.name, finding.evidence)
 ```
 
@@ -256,7 +262,7 @@ There is no ruff plugin, because ruff has no plugin API.
 
 ## Status
 
-**Pre-release.** All eight checks are implemented; `NAM107` is on probation, and `NAM102`, `NAM104` and `NAM108` lean on the allowlist for names only their author can read. The output format and the `NAM1xx` codes are not frozen yet.
+**0.2.0, pre-release.** All eight checks are implemented; `NAM107` is on probation and off by default, and `NAM102`, `NAM104` and `NAM108` lean on the allowlist for names only their author can read. The output format and the `NAM1xx` codes are not frozen yet.
 
 ## Development
 

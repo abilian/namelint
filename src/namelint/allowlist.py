@@ -13,6 +13,7 @@ of `pyproject.toml` is left byte for byte as it was.
 
 from __future__ import annotations
 
+import json
 import re
 import tomllib
 from fnmatch import fnmatchcase
@@ -51,29 +52,27 @@ def find_config(start: Path) -> Path | None:
     return None
 
 
-def load(config: Path | None) -> Allowlist:
-    """The validated allowlist in `config`, empty when there is none."""
+def load(config: Path | None) -> Allowlist | None:
+    """The validated allowlist in `config`, or None when it declares none.
+
+    None and `{}` differ: an empty table is an allowlist `namelint init`
+    already wrote, and must not write again.
+    """
     if config is None:
-        return {}
+        return None
     try:
         table = tomllib.loads(config.read_text(encoding="utf-8"))
     except tomllib.TOMLDecodeError as exc:
         raise ConfigError(config, str(exc)) from exc
-    allow = table.get("tool", {}).get("namelint", {}).get("allow", {})
+    allow = table.get("tool", {}).get("namelint", {}).get("allow")
+    if allow is None:
+        return None
     for code, names in allow.items():
         if code not in CODES:
             raise ConfigError(config, f"unknown code {code} in {HEADER}")
         if not (isinstance(names, list) and all(isinstance(n, str) for n in names)):
             raise ConfigError(config, f"{code} must be a list of names")
     return allow
-
-
-def declared(config: Path | None) -> bool:
-    """Whether `config` has an allowlist table, even an empty one."""
-    if config is None:
-        return False
-    table = tomllib.loads(config.read_text(encoding="utf-8"))
-    return "allow" in table.get("tool", {}).get("namelint", {})
 
 
 def allowed(finding: Finding, allow: Allowlist) -> bool:
@@ -103,7 +102,7 @@ def write(config: Path, allow: Allowlist) -> None:
     table = _render(allow)
     header = _HEADER_LINE.search(text)
     if header is None:
-        if text and load(config):
+        if text and load(config) is not None:
             raise ConfigError(
                 config, f"allowlist is not a {HEADER} table; edit it by hand"
             )
@@ -120,6 +119,7 @@ def _render(allow: Allowlist) -> str:
     lines = [HEADER]
     for code, names in allow.items():
         lines.append(f"{code} = [")
-        lines += [f'    "{name}",' for name in names]
+        # A JSON string is a valid TOML basic string, escapes included.
+        lines += [f"    {json.dumps(name)}," for name in names]
         lines.append("]")
     return "\n".join(lines) + "\n"

@@ -31,6 +31,8 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
+from namelint.checks import CODES
+
 ROOT = Path(__file__).resolve().parent.parent
 CORPUS = ROOT / "corpus"
 OUT = ROOT / "calibration"
@@ -166,33 +168,53 @@ def _measure(project: Project) -> tuple[list[dict], int]:
     targets = [str(path) for path in project.targets() if path.exists()]
     if not targets:
         return [], 0
-    found = _namelint(["--json", *targets])
-    counted = _namelint(["--stats", *targets], text=True)
-    functions = _functions_from_stats(counted)
+    found = [
+        json.loads(line)
+        for line in _namelint(["--json", *targets]).splitlines()
+        if line.strip()
+    ]
+    functions = functions_from_stats(_namelint(["--stats", *targets]))
     for record in found:
         record["project"] = project.name
         record["path"] = str(Path(record["path"]).relative_to(project.checkout))
     return found, functions
 
 
-def _namelint(args: list[str], *, text: bool = False):
+# Every check, opt-in ones included: calibration is what decides whether
+# a check on probation can become a default.
+SELECT_ALL = [option for code in CODES for option in ("--select", code)]
+
+
+def _namelint(args: list[str]) -> str:
+    """namelint's stdout, with no allowlist: the corpus is measured raw.
+
+    Exit 1 only means findings. Anything else is namelint failing, and a
+    failure recorded as "no findings" would read as a perfect score.
+    """
     result = subprocess.run(  # noqa: S603
-        [sys.executable, "-m", "namelint", *args],
+        [sys.executable, "-m", "namelint", "--no-allowlist", *SELECT_ALL, *args],
         check=False,
         capture_output=True,
         text=True,
         cwd=ROOT,
     )
-    if text:
-        return result.stdout
-    return [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
+    if result.returncode not in {0, 1}:
+        raise CalibrationError(args, result.stderr)
+    return result.stdout
 
 
-def _functions_from_stats(stats: str) -> int:
+class CalibrationError(Exception):
+    """namelint failed on a corpus project, so there is nothing to measure."""
+
+    def __init__(self, args: list[str], stderr: str) -> None:
+        super().__init__(f"namelint {' '.join(args)} failed:\n{stderr}")
+
+
+def functions_from_stats(stats: str) -> int:
     for line in stats.splitlines():
         if line.startswith("functions scanned:"):
             return int(line.split(":")[1])
-    return 0
+    raise CalibrationError(["--stats"], f"no 'functions scanned' line in:\n{stats}")
 
 
 def _write_findings(findings: list[dict]) -> None:
@@ -268,7 +290,9 @@ def _write_sample(findings: list[dict], *, size: int, seed: int) -> None:
             if source:
                 lines.append(f"      `{source}`")
         lines.append("")
-    (OUT / "sample.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (OUT / "sample.md").write_text(
+        "\n".join(lines).rstrip("\n") + "\n", encoding="utf-8"
+    )
 
 
 def _source_line(finding: dict) -> str:

@@ -8,13 +8,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from namelint.visitor import check_source
+from namelint.visitor import lint_source
 
 MODULE = Path("src/app/users.py")
 
 
 def codes(source: str) -> list[str]:
-    return [found.code for found in check_source(source, MODULE)]
+    return [found.code for found in lint_source(source, MODULE)]
 
 
 def test_a_singular_generator_is_reported() -> None:
@@ -121,3 +121,12 @@ def test_a_pluggy_hook_wrapper_is_left_alone() -> None:
     )
 
     assert codes(source) == []
+
+
+def test_the_suggested_name_keeps_a_private_name_private() -> None:
+    source = "def _entry(root):\n    yield root\n"
+
+    [finding] = lint_source(source, MODULE)
+
+    assert "_iter_entry" in finding.message
+    assert "iter__entry" not in finding.message

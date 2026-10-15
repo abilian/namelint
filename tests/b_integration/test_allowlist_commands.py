@@ -151,3 +151,15 @@ def test_entries_are_sorted_for_stable_diffs(tmp_path: Path, monkeypatch) -> Non
     main(["init", "--accept-existing", "src"])
 
     assert allow_table(config) == {"NAM104": sorted(names)}
+
+
+def test_escaped_entries_survive_a_rewrite(tmp_path: Path, monkeypatch) -> None:
+    """`"a\\\\b"` is the pattern a-backslash-b; written back unescaped it
+    would become a-backspace-b."""
+    config = project(
+        tmp_path, monkeypatch, '[tool.namelint.allow]\nNAM104 = ["a\\\\b"]\n'
+    )
+
+    main(["allow", "src"])
+
+    assert "a\\b" in allow_table(config)["NAM104"]

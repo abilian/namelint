@@ -47,10 +47,10 @@ class Context:
     checks a `Path`, is what lets `checks.py` import nothing but `ast`.
     """
 
+    # Word forms that are predominantly verbs, for NAM102. Required: an
+    # empty default would switch NAM102 off without a word.
+    verbs: frozenset[str]
     is_test_module: bool = False
     class_name: str | None = None
     # The names of every method in the same class, this one included.
     siblings: tuple[str, ...] = ()
-    # Word forms that are predominantly verbs, for NAM102. Empty means
-    # unknown, and unknown is silence.
-    verbs: frozenset[str] = frozenset()

@@ -12,7 +12,7 @@ keeps the module portable into a flake8 adapter or another tool.
 from __future__ import annotations
 
 import ast
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 from namelint.finding import Context, Finding
 
@@ -33,28 +33,53 @@ Function = ast.FunctionDef | ast.AsyncFunctionDef
 # like.
 
 
-def check_uncollected_test(node: Function, ctx: Context) -> Finding | None:
+def find_uncollected_test(node: Function, ctx: Context) -> Finding | None:
     """NAM101: an asserting, zero-argument function in a test module."""
     if not ctx.is_test_module or node.name.startswith("test"):
         return None
     # A leading underscore says private, which says "not collected" as
     # plainly as the name could. Every one of the nine findings in the
     # first corpus run was a `_`-prefixed helper, and all nine were wrong.
-    if node.name.startswith("_"):
+    if node.name.startswith("_") or node.name in _LIFECYCLE:
         return None
     if node.decorator_list or _positional_arity(node, ctx):
         return None
     if not _asserts(node):
         return None
-    return Finding(
+    return _finding(
         "NAM101",
-        node.lineno,
-        node.col_offset + 1,
-        node.name,
+        node,
         f"{node.name} asserts but pytest will not collect it;"
         f" rename to test_{node.name}",
         evidence="contains an assertion, takes no arguments",
     )
+
+
+# Setup and teardown hooks run around the tests, so they may assert and
+# take nothing, and are still not tests: unittest's camelCase and
+# pytest's xunit-style names, plus pytest's `setup`/`teardown` (nose).
+_LIFECYCLE = frozenset(
+    {
+        "setUp",
+        "tearDown",
+        "setUpClass",
+        "tearDownClass",
+        "setUpModule",
+        "tearDownModule",
+        "asyncSetUp",
+        "asyncTearDown",
+        "setup_module",
+        "teardown_module",
+        "setup_function",
+        "teardown_function",
+        "setup_class",
+        "teardown_class",
+        "setup_method",
+        "teardown_method",
+        "setup",
+        "teardown",
+    }
+)
 
 
 def _positional_arity(node: Function, ctx: Context) -> int:
@@ -69,7 +94,7 @@ def _asserts(node: Function) -> bool:
     return any(
         isinstance(child, ast.Assert)
         or (isinstance(child, ast.With) and _raises_block(child))
-        for child in _own_body(node)
+        for child in _own_nodes(node)
     )
 
 
@@ -93,7 +118,7 @@ def _raises_block(node: ast.With) -> bool:
 # WordNet and nouns in every property ever written.
 
 
-def check_property_named_as_verb(node: Function, ctx: Context) -> Finding | None:
+def find_property_named_as_verb(node: Function, ctx: Context) -> Finding | None:
     """NAM102: a `@property` whose first word is predominantly a verb."""
     if not _is_property(node):
         return None
@@ -101,11 +126,9 @@ def check_property_named_as_verb(node: Function, ctx: Context) -> Finding | None
     head = node.name.split("_", 1)[0].lower()
     if head not in ctx.verbs:
         return None
-    return Finding(
+    return _finding(
         "NAM102",
-        node.lineno,
-        node.col_offset + 1,
-        node.name,
+        node,
         f"{node.name} is a property but opens with the verb {head!r};"
         " name what it holds, or make it a method",
         evidence=f"@property, {head!r} is predominantly a verb",
@@ -114,7 +137,7 @@ def check_property_named_as_verb(node: Function, ctx: Context) -> Finding | None
 
 def _is_property(node: Function) -> bool:
     return any(
-        _dotted(decorator).rsplit(".", 1)[-1] in {"property", "cached_property"}
+        _last_name(decorator) in {"property", "cached_property"}
         for decorator in node.decorator_list
     )
 
@@ -123,10 +146,11 @@ def _is_property(node: Function) -> bool:
 # NAM103 — a predicate that does not return a bool
 # ---------------------------------------------------------------------------
 
-# `if is_ready():` reads the name, not the body. `check_` belongs here
-# too: it answers a question, or raises when the answer is no. A predicate returning a
+# `if is_ready():` reads the name, not the body. A predicate returning a
 # string, a list or a count is read as truthy by every caller, so the
 # empty string and the zero are the bug, and they surface far away.
+# `check_` belongs here too: it answers a question, or raises when the
+# answer is no.
 #
 # Annotations and return shapes only, per notes/02-specs.md §2: this tool
 # does no type inference, and an unknown return is silence rather than a
@@ -157,7 +181,7 @@ _NON_BOOL_NODES = (
 )
 
 
-def check_predicate_returns_non_bool(node: Function, _ctx: Context) -> Finding | None:
+def find_predicate_returns_non_bool(node: Function, _ctx: Context) -> Finding | None:
     """NAM103: an `is_`/`has_`/`can_`/`should_`/`was_`/`check_` returning a non-bool."""
     if not node.name.startswith(_PREDICATE_PREFIXES):
         return None
@@ -177,7 +201,9 @@ def check_predicate_returns_non_bool(node: Function, _ctx: Context) -> Finding |
 def _non_bool_annotation(node: Function) -> str | None:
     """The return annotation, unparsed, when it says something other than bool."""
     annotation = node.returns
-    if annotation is None or _bool_annotation(annotation) or _names_its_return(node):
+    if annotation is None or _bool_annotation(annotation) or _unknown(annotation):
+        return None
+    if _names_its_return(node):
         return None
     if node.name.startswith("check_") and _none_annotation(annotation):
         return None  # a `check_` may report by raising instead
@@ -185,11 +211,9 @@ def _non_bool_annotation(node: Function) -> str | None:
 
 
 def _predicate_finding(node: Function, evidence: str, shown: str) -> Finding:
-    return Finding(
+    return _finding(
         "NAM103",
-        node.lineno,
-        node.col_offset + 1,
-        node.name,
+        node,
         f"{node.name} reads as a predicate but {evidence};"
         f" callers will test {shown} for truth",
         evidence=evidence,
@@ -200,8 +224,8 @@ def _bool_annotation(annotation: ast.expr) -> bool:
     """Whether this return annotation is a bool, or a guard that returns one."""
     annotation = _unquoted(annotation)
     if isinstance(annotation, ast.Subscript):
-        return _dotted(annotation.value).rsplit(".", 1)[-1] in _BOOL_GUARDS
-    return _dotted(annotation).rsplit(".", 1)[-1] == "bool"
+        return _last_name(annotation.value) in _BOOL_GUARDS
+    return _last_name(annotation) == "bool"
 
 
 def _none_annotation(annotation: ast.expr) -> bool:
@@ -238,10 +262,16 @@ def _names_its_return(node: Function) -> bool:
     annotation = node.returns
     if annotation is None:
         return False
-    words = _annotation_words(annotation)
-    if words & _UNKNOWN_ANNOTATIONS_LOWER:
-        return True
-    return node.name.rsplit("_", 1)[-1].lower() in words
+    return node.name.rsplit("_", 1)[-1].lower() in _annotation_words(annotation)
+
+
+def _unknown(annotation: ast.expr) -> bool:
+    """Whether the annotation mentions `Any` or `object` anywhere.
+
+    `-> Any` and `-> dict[str, Any] | bool` both put the uncertainty in
+    the annotation itself, so neither is evidence of a non-bool.
+    """
+    return bool(_annotation_words(annotation) & _UNKNOWN_ANNOTATIONS_LOWER)
 
 
 _UNKNOWN_ANNOTATIONS_LOWER = frozenset(name.lower() for name in _UNKNOWN_ANNOTATIONS)
@@ -281,7 +311,7 @@ def _words(text: str) -> list[str]:
 
 def _non_bool_return(node: Function) -> str | None:
     """The first returned value that is evidently not a bool, unparsed."""
-    for value in _returned(node):
+    for value in _returned_values(node):
         if isinstance(value, ast.Constant):
             # `True`, `False` and `None` are not evidence of a non-bool.
             # `None` is an early exit in half the predicates ever written.
@@ -349,18 +379,16 @@ _COMMAND_VERBS = frozenset(
 _DECLARATION_DECORATORS = ("abstractmethod", "overload")
 
 
-def check_command_returns_value(node: Function, _ctx: Context) -> Finding | None:
+def find_command_returns_value(node: Function, _ctx: Context) -> Finding | None:
     """NAM104: a command verb (`set_`, `reset_`, `close`) that returns a value."""
     if _verb(node) not in _COMMAND_VERBS or _yields(node):
         return None
-    for value in _returned(node):
+    for value in _returned_values(node):
         if not _command_status(value, node.name):
             shown = ast.unparse(value)
-            return Finding(
+            return _finding(
                 "NAM104",
-                node.lineno,
-                node.col_offset + 1,
-                node.name,
+                node,
                 f"{node.name} reads as a command but returns {shown};"
                 " name it for what it returns, or return nothing",
                 evidence=f"returns {shown}",
@@ -385,22 +413,20 @@ def _command_status(value: ast.expr, name: str) -> bool:
     return isinstance(value, ast.Call) and _dotted(value.func).endswith(name)
 
 
-def check_query_returns_none(node: Function, _ctx: Context) -> Finding | None:
+def find_query_returns_none(node: Function, _ctx: Context) -> Finding | None:
     """NAM105: a value verb (`get_`, `find_`, `to_`) whose returns carry nothing."""
     if _verb(node) not in _VALUE_VERBS or _is_stub(node) or _yields(node):
         return None
     if any(
-        _dotted(decorator).rsplit(".", 1)[-1] in _DECLARATION_DECORATORS
+        _last_name(decorator) in _DECLARATION_DECORATORS
         for decorator in node.decorator_list
     ):
         return None
-    if next(_returned(node), None) is not None:
+    if next(_returned_values(node), None) is not None:
         return None
-    return Finding(
+    return _finding(
         "NAM105",
-        node.lineno,
-        node.col_offset + 1,
-        node.name,
+        node,
         f"{node.name} reads as a query but returns None on every path;"
         " return the value, or name it as a command",
         evidence="no return carries a value",
@@ -438,14 +464,14 @@ def _is_stub(node: Function) -> bool:
     )
 
 
-def _returned(node: Function) -> Iterator[ast.expr]:
+def _returned_values(node: Function) -> Iterator[ast.expr]:
     """Every expression the function itself returns, `return None` included.
 
     An explicit `return None` is a value: `get_source()` returning None
     for "no source" is the importlib protocol, not a command in
     disguise. Only falling off the end, or a bare `return`, is silence.
     """
-    for child in _own_body(node):
+    for child in _own_nodes(node):
         if isinstance(child, ast.Return) and child.value is not None:
             yield child.value
 
@@ -482,18 +508,16 @@ _IO_ROOTS = frozenset(
 _CHEAP_NAMES = frozenset({"get", "getattr"})
 
 
-def check_get_performs_io(node: Function, _ctx: Context) -> Finding | None:
+def find_get_performs_io(node: Function, _ctx: Context) -> Finding | None:
     """NAM106: a `get_` whose body reaches a disk, a socket or a database."""
     if not (node.name == "get" or node.name.startswith("get_")):
         return None
     call = _first_io_call(node)
     if call is None:
         return None
-    return Finding(
+    return _finding(
         "NAM106",
-        node.lineno,
-        node.col_offset + 1,
-        node.name,
+        node,
         f"{node.name} performs I/O (calls {call}); get_ promises a cheap"
         " lookup, use fetch_, load_ or read_",
         evidence=f"calls {call}",
@@ -501,7 +525,7 @@ def check_get_performs_io(node: Function, _ctx: Context) -> Finding | None:
 
 
 def _first_io_call(node: Function) -> str | None:
-    for child in _own_body(node):
+    for child in _own_nodes(node):
         if not isinstance(child, ast.Call):
             continue
         name = _dotted(child.func)
@@ -549,7 +573,7 @@ _PROTOCOL_DECORATORS = (
 )
 
 
-def check_unlazy_generator(node: Function, _ctx: Context) -> Finding | None:
+def find_unlazy_generator(node: Function, _ctx: Context) -> Finding | None:
     """NAM107: a generator whose name reads as if it returned a container."""
     if node.name.startswith("__") or not _yields(node):
         return None
@@ -561,20 +585,24 @@ def check_unlazy_generator(node: Function, _ctx: Context) -> Finding | None:
     bare = node.name.lstrip("_")
     if bare.startswith(_LAZY_PREFIXES) or _plural(bare):
         return None
-    return Finding(
+    return _finding(
         "NAM107",
-        node.lineno,
-        node.col_offset + 1,
-        node.name,
-        f"{node.name} is a generator; name it iter_{node.name} or use a plural",
+        node,
+        f"{node.name} is a generator; name it {_lazy_name(node.name)} or use a plural",
         evidence="contains yield",
     )
+
+
+def _lazy_name(name: str) -> str:
+    """`entry` gives `iter_entry`; `_entry` gives `_iter_entry`, still private."""
+    bare = name.lstrip("_")
+    return f"{name[: len(name) - len(bare)]}iter_{bare}"
 
 
 def _has_protocol_decorator(node: Function) -> bool:
     for decorator in node.decorator_list:
         target = decorator.func if isinstance(decorator, ast.Call) else decorator
-        if _dotted(target).rsplit(".", 1)[-1].endswith(_PROTOCOL_DECORATORS):
+        if _last_name(target).endswith(_PROTOCOL_DECORATORS):
             return True
     return False
 
@@ -582,7 +610,7 @@ def _has_protocol_decorator(node: Function) -> bool:
 def _yields(node: Function) -> bool:
     """Whether `node` itself yields, ignoring generators nested inside it."""
     return any(
-        isinstance(child, (ast.Yield, ast.YieldFrom)) for child in _own_body(node)
+        isinstance(child, (ast.Yield, ast.YieldFrom)) for child in _own_nodes(node)
     )
 
 
@@ -613,7 +641,7 @@ def _plural(name: str) -> bool:
 _PREFIX_CONVENTION = 3
 
 
-def check_method_repeats_class(node: Function, ctx: Context) -> Finding | None:
+def find_method_repeats_class(node: Function, ctx: Context) -> Finding | None:
     """NAM108: a method whose name contains its class name as whole words."""
     if ctx.class_name is None or ctx.is_test_module or node.name.startswith("_"):
         return None
@@ -622,11 +650,9 @@ def check_method_repeats_class(node: Function, ctx: Context) -> Finding | None:
         return None
     if sum(_repeats(sibling, cls) for sibling in ctx.siblings) >= _PREFIX_CONVENTION:
         return None
-    return Finding(
+    return _finding(
         "NAM108",
-        node.lineno,
-        node.col_offset + 1,
-        node.name,
+        node,
         f"{node.name} repeats its class name {ctx.class_name};"
         " the call site already says it",
         evidence=f"method of {ctx.class_name}",
@@ -643,34 +669,34 @@ def _repeats(name: str, cls: list[str]) -> bool:
 # Driving them
 # ---------------------------------------------------------------------------
 
-CHECKS = (
-    check_uncollected_test,
-    check_property_named_as_verb,
-    check_predicate_returns_non_bool,
-    check_command_returns_value,
-    check_query_returns_none,
-    check_get_performs_io,
-    check_unlazy_generator,
-    check_method_repeats_class,
-)
-CODES = (
-    "NAM101",
-    "NAM102",
-    "NAM103",
-    "NAM104",
-    "NAM105",
-    "NAM106",
-    "NAM107",
-    "NAM108",
-)
+Check = Callable[[Function, Context], Finding | None]
+
+# Keyed by code, so the list of codes cannot drift from the checks.
+CHECKS: dict[str, Check] = {
+    "NAM101": find_uncollected_test,
+    "NAM102": find_property_named_as_verb,
+    "NAM103": find_predicate_returns_non_bool,
+    "NAM104": find_command_returns_value,
+    "NAM105": find_query_returns_none,
+    "NAM106": find_get_performs_io,
+    "NAM107": find_unlazy_generator,
+    "NAM108": find_method_repeats_class,
+}
+CODES = tuple(CHECKS)
+
+# On probation, so they run only when selected by name. NAM107 fires 17
+# times per thousand functions in httpx, too often to be a default.
+OPT_IN = frozenset({"NAM107"})
 
 
-def check_function(node: Function, ctx: Context) -> list[Finding]:
+def lint_function(node: Function, ctx: Context) -> list[Finding]:
     """Every finding the checks report for one function."""
-    return [found for check in CHECKS if (found := check(node, ctx)) is not None]
+    return [
+        found for check in CHECKS.values() if (found := check(node, ctx)) is not None
+    ]
 
 
-def _own_body(node: Function) -> Iterator[ast.AST]:
+def _own_nodes(node: Function) -> Iterator[ast.AST]:
     """Every node under `node`, without descending into a nested function.
 
     `ast.walk` would cross that boundary, so an inner generator would
@@ -684,6 +710,15 @@ def _own_body(node: Function) -> Iterator[ast.AST]:
         if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
             continue
         stack.extend(ast.iter_child_nodes(current))
+
+
+def _finding(code: str, node: Function, message: str, *, evidence: str) -> Finding:
+    return Finding(code, node.lineno, node.col_offset + 1, node.name, message, evidence)
+
+
+def _last_name(node: ast.AST) -> str:
+    """`c` for `a.b.c`, the bare id for a name, else ``""``."""
+    return _dotted(node).rsplit(".", 1)[-1]
 
 
 def _dotted(node: ast.AST) -> str:

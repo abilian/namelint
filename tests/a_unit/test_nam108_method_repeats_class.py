@@ -9,13 +9,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from namelint.visitor import check_source
+from namelint.visitor import lint_source
 
 MODULE = Path("src/app/config.py")
 
 
 def codes(source: str, path: Path = MODULE) -> list[str]:
-    return [finding.code for finding in check_source(source, path)]
+    return [finding.code for finding in lint_source(source, path)]
 
 
 def method(cls: str, *names: str) -> str:

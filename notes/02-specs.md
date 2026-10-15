@@ -104,7 +104,7 @@ namelint/
 Two constraints on the layout:
 
 - **`checks.py` imports nothing but `ast` and `finding`.** It is the part that would move if this ever merges into another tool. It is also the part a flake8 adapter would call.
-- **The core signature is flake8's plugin contract**: `check_module(tree: ast.Module, path: Path) -> list[Finding]`. A flake8 adapter is then an entry point and a generator wrapper, written only if someone asks.
+- **The core signature is flake8's plugin contract**: `lint_module(tree: ast.Module, path: Path) -> list[Finding]`. A flake8 adapter is then an entry point and a generator wrapper, written only if someone asks.
 
 ## 5. Code style
 
@@ -118,10 +118,10 @@ Follows the conventions already in use across these projects, so a reader moving
 - No silenced linter. A `noqa` states its reason on the same line or it does not go in.
 - Markdown soft-wrapped: one paragraph, one line.
 
-Each check is one function with one job, named for what it reports:
+Each check is one function with one job, named for what it reports. The prefix is `find_`, not `check_`: `NAM103` reads `check_` as a predicate, and a check returns a finding, so namelint would otherwise fail its own lint.
 
 ```python
-def check_get_performs_io(node: ast.FunctionDef, ctx: Context) -> Finding | None:
+def find_get_performs_io(node: ast.FunctionDef, ctx: Context) -> Finding | None:
 ```
 
 ## 6. Testing strategy

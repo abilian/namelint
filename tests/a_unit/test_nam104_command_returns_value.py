@@ -9,13 +9,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from namelint.visitor import check_source
+from namelint.visitor import lint_source
 
 MODULE = Path("src/app/cache.py")
 
 
 def codes(source: str) -> list[str]:
-    return [finding.code for finding in check_source(source, MODULE)]
+    return [finding.code for finding in lint_source(source, MODULE)]
 
 
 def test_a_command_returning_a_value_is_reported() -> None:

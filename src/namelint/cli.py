@@ -19,10 +19,9 @@ from pathlib import Path
 
 from namelint import __version__, allowlist
 from namelint.allowlist import Allowlist, ConfigError
-from namelint.checks import CODES
-from namelint.finding import Finding
+from namelint.checks import CODES, OPT_IN
 from namelint.report import Reported, as_json, as_stats, as_text
-from namelint.visitor import check_module
+from namelint.visitor import functions, lint_module
 
 SKIP_DIRS = frozenset(
     {".git", ".venv", "venv", "__pycache__", "node_modules", ".tox", "build", "dist"}
@@ -58,24 +57,30 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("error: --select and --ignore leave no checks enabled", file=sys.stderr)
         return EXIT_ERROR
     config = allowlist.find_config(Path.cwd())
+    # With no `pyproject.toml` anywhere up the tree, the commands create
+    # one in the current directory.
+    target = config or Path.cwd() / allowlist.CONFIG
     try:
         allow = allowlist.load(config)
         if command == "init":
-            return _init(config, args.paths, selected, accept=args.accept_existing)
+            return _init(
+                target, allow, args.paths, selected, accept=args.accept_existing
+            )
         if command == "allow":
-            target = config or Path.cwd() / allowlist.CONFIG
-            return _allow(target, allow, args.paths, selected)
+            return _allow(target, allow or {}, args.paths, selected)
     except ConfigError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_ERROR
 
-    results, functions = _lint(args.paths, selected, allow)
-    _print(results, functions, stats=args.stats, as_jsonl=args.json)
+    in_force = {} if args.no_allowlist else allow or {}
+    results, scanned = _lint(args.paths, selected, in_force)
+    _print(results, scanned, stats=args.stats, as_jsonl=args.json)
     return EXIT_FINDINGS if results else EXIT_CLEAN
 
 
 def _init(
-    config: Path | None,
+    target: Path,
+    existing: Allowlist | None,
     paths: Sequence[Path],
     selected: frozenset[str],
     *,
@@ -83,17 +88,15 @@ def _init(
 ) -> int:
     """Add an empty `[tool.namelint.allow]`, or with `accept` one holding every finding.
 
-    Refuses a project that already declares an allowlist: that one
-    belongs to `namelint allow`. With no `pyproject.toml` anywhere up the
-    tree, one is created in the current directory.
+    Refuses a project that already declares an allowlist, even an empty
+    one: that one belongs to `namelint allow`.
     """
-    if allowlist.declared(config):
+    if existing is not None:
         print(
-            f"error: {config} already has {allowlist.HEADER}; use `namelint allow`",
+            f"error: {target} already has {allowlist.HEADER}; use `namelint allow`",
             file=sys.stderr,
         )
         return EXIT_ERROR
-    target = config or Path.cwd() / allowlist.CONFIG
     if accept:
         return _allow(target, {}, paths, selected)
     allowlist.write(target, {})
@@ -118,7 +121,7 @@ def _lint(
 ) -> tuple[list[Reported], int]:
     """Every finding under `paths` not allowed, and the functions scanned."""
     results: list[Reported] = []
-    functions = 0
+    scanned = 0
     for path in _python_files(paths):
         try:
             tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
@@ -128,13 +131,15 @@ def _lint(
             # the corpus runs in notes/02-specs.md §6 impossible.
             print(f"{path}: skipped, {exc.__class__.__name__}: {exc}", file=sys.stderr)
             continue
-        functions += _count_functions(tree)
+        # Counted the way the visitor walks, nested functions excluded,
+        # so `--stats` divides by the functions that were checked.
+        scanned += sum(1 for _ in functions(tree))
         results += [
             (str(path), finding)
-            for finding in check_module(tree, path)
+            for finding in lint_module(tree, path)
             if finding.code in selected and not allowlist.allowed(finding, allow)
         ]
-    return results, functions
+    return results, scanned
 
 
 def _print(
@@ -177,13 +182,15 @@ def _parser(command: str | None) -> argparse.ArgumentParser:
         "--select",
         action="append",
         default=[],
+        choices=CODES,
         metavar="CODE",
-        help="run only these checks (repeatable)",
+        help="run only these checks (repeatable); NAM107 runs only when selected",
     )
     parser.add_argument(
         "--ignore",
         action="append",
         default=[],
+        choices=CODES,
         metavar="CODE",
         help="skip these checks (repeatable)",
     )
@@ -200,6 +207,11 @@ def _parser(command: str | None) -> argparse.ArgumentParser:
         parser.add_argument(
             "--stats", action="store_true", help="counts per code, for calibration"
         )
+        parser.add_argument(
+            "--no-allowlist",
+            action="store_true",
+            help="report everything, ignoring [tool.namelint.allow]",
+        )
     parser.add_argument(
         "--version", action="version", version=f"namelint {__version__}"
     )
@@ -207,7 +219,7 @@ def _parser(command: str | None) -> argparse.ArgumentParser:
 
 
 def _selected_codes(select: list[str], ignore: list[str]) -> frozenset[str]:
-    chosen = frozenset(select) & frozenset(CODES) if select else frozenset(CODES)
+    chosen = frozenset(select) if select else frozenset(CODES) - OPT_IN
     return chosen - frozenset(ignore)
 
 
@@ -224,11 +236,4 @@ def _python_files(paths: Sequence[Path]) -> Iterator[Path]:
             )
 
 
-def _count_functions(tree: ast.Module) -> int:
-    return sum(
-        isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        for node in ast.walk(tree)
-    )
-
-
-__all__ = ["Finding", "main"]
+__all__ = ["main"]

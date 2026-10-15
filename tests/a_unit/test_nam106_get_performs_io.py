@@ -9,13 +9,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from namelint.visitor import check_source
+from namelint.visitor import lint_source
 
 MODULE = Path("src/app/users.py")
 
 
 def findings(source: str):
-    return check_source(source, MODULE)
+    return lint_source(source, MODULE)
 
 
 def codes(source: str) -> list[str]:

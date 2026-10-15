@@ -12,14 +12,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from namelint.visitor import check_source
+from namelint.visitor import lint_source
 
 TEST_MODULE = Path("tests/test_users.py")
 APP_MODULE = Path("src/app/users.py")
 
 
 def codes(source: str, path: Path = TEST_MODULE) -> list[str]:
-    return [finding.code for finding in check_source(source, path)]
+    return [finding.code for finding in lint_source(source, path)]
 
 
 def test_an_asserting_zero_arg_function_in_a_test_module_is_reported() -> None:
@@ -94,5 +94,21 @@ def test_a_private_helper_is_left_alone() -> None:
     and all nine were wrong.
     """
     source = "def _load_migration():\n    assert build().ok\n"
+
+    assert codes(source) == []
+
+
+def test_unittest_lifecycle_methods_are_left_alone() -> None:
+    source = (
+        "import unittest\n\nclass T(unittest.TestCase):\n"
+        "    def setUp(self):\n        assert self.db\n"
+        "    def tearDown(self):\n        assert self.db\n"
+    )
+
+    assert codes(source) == []
+
+
+def test_pytest_xunit_setup_is_left_alone() -> None:
+    source = "def setup_module():\n    assert PATH.exists()\n"
 
     assert codes(source) == []

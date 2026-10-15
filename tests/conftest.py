@@ -1,14 +1,12 @@
-"""Shared pytest fixtures and configuration.
+"""pytest configuration: markers applied by test directory.
 
 Test Pyramid Structure:
 - tests/a_unit/        - Unit tests (fast, isolated, no I/O)
 - tests/b_integration/ - Integration tests (component interactions, file I/O)
-- tests/c_e2e/         - End-to-end tests (full app/CLI workflows)
 
 Run specific test types:
     uv run pytest -m unit              # Run only unit tests
     uv run pytest -m integration       # Run only integration tests
-    uv run pytest -m e2e               # Run only e2e tests
     uv run pytest tests/a_unit/        # Run by directory
 """
 
@@ -31,12 +29,3 @@ def pytest_collection_modifyitems(config, items):  # noqa: ARG001 — pytest mat
             item.add_marker(pytest.mark.unit)
         elif "b_integration" in parts:
             item.add_marker(pytest.mark.integration)
-        elif "c_e2e" in parts:
-            item.add_marker(pytest.mark.e2e)
-
-
-# -----------------------------------------------------------------------------
-# Shared Fixtures
-# -----------------------------------------------------------------------------
-
-# Add shared fixtures here

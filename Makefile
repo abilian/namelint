@@ -10,7 +10,6 @@ lint:
 	uv run --active ty check src
 	uv run --active pyrefly check src
 	uv run --active mypy src
-	# uv run --active mypy --strict src
 
 format:
 	uv run --active ruff format src tests
