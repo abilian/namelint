@@ -3,7 +3,7 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2026-10-15
+## [0.2.0] - 2026-10-15
 
 ### Added
 
@@ -15,9 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `namelint init` adds an empty `[tool.namelint.allow]` table to `pyproject.toml`; `namelint init --accept-existing` fills it with every current finding, for adopting namelint on an existing codebase. `namelint allow` adds the current findings to the allowlist. Both accept `--select`/`--ignore` and paths, and rewrite only the `[tool.namelint.allow]` table.
 - `--json` output includes `qualname` (`Class.method`). `Finding` has a new `owner` field.
 
+### Fixed
+
+- `--stats` counted nested functions, which no check reads, so every rate was understated by up to a third. The calibration table is re-measured over 71,274 functions (previously 85,368).
+- `--select` and `--ignore` exit 2 on an unknown code.
+- `NAM101` reported unittest's `setUp`/`tearDown` and pytest's `setup_module`-style hooks, a third of its corpus findings. Setup and teardown hooks are now exempt.
+- `NAM107` suggested `iter__entry` for a private `_entry`; it now suggests `_iter_entry`.
+- An allowlist entry containing a backslash or a quote was written back unescaped, which changed the pattern.
+
 ### Changed
 
 - `NAM103` treats `check_` as a predicate prefix. A `check_` annotated `-> None` stays quiet, since it answers by raising.
+- `NAM107` is opt-in: it runs only with `--select NAM107`, while it fires 17 times per thousand functions in `httpx`.
+- The library API is renamed so namelint passes its own lint: `check_module` and `check_source` are now `lint_module` and `lint_source`. Each check is named `find_<what it reports>`.
+- `--no-allowlist` reports every finding, allowlist or not.
 
 ## [0.1.0] - 2026-10-02
 
