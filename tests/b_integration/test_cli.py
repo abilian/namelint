@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from importlib import metadata
 from pathlib import Path
 
 import pytest
@@ -222,3 +223,11 @@ def test_an_opt_in_check_runs_when_selected(tmp_path: Path, capsys) -> None:
 
     assert main([str(tmp_path), "--select", "NAM107"]) == EXIT_FINDINGS
     assert "NAM107" in capsys.readouterr().out
+
+
+def test_version_comes_from_the_package_metadata(capsys) -> None:
+    with pytest.raises(SystemExit) as exited:
+        main(["--version"])
+
+    assert exited.value.code == EXIT_CLEAN
+    assert capsys.readouterr().out.strip() == f"namelint {metadata.version('namelint')}"

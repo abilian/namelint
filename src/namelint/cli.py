@@ -15,9 +15,10 @@ import argparse
 import ast
 import sys
 from collections.abc import Iterator, Sequence
+from importlib import metadata
 from pathlib import Path
 
-from namelint import __version__, allowlist
+from namelint import allowlist
 from namelint.allowlist import Allowlist, ConfigError
 from namelint.checks import CODES, OPT_IN
 from namelint.report import Reported, as_json, as_stats, as_text
@@ -213,7 +214,11 @@ def _parser(command: str | None) -> argparse.ArgumentParser:
             help="report everything, ignoring [tool.namelint.allow]",
         )
     parser.add_argument(
-        "--version", action="version", version=f"namelint {__version__}"
+        "--version",
+        action="version",
+        # The version lives in pyproject.toml; this reads it back from the
+        # installed package's metadata.
+        version=f"namelint {metadata.version('namelint')}",
     )
     return parser
 
