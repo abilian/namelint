@@ -31,6 +31,7 @@ def as_json(results: Sequence[Reported]) -> str:
                 "col": finding.col,
                 "code": finding.code,
                 "name": finding.name,
+                "qualname": finding.qualname,
                 "message": finding.message,
                 "evidence": finding.evidence,
             },

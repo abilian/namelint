@@ -1,5 +1,10 @@
 """The command line: walking, selection, exit codes.
 
+`namelint PATH...` lints. Two commands write the allowlist instead:
+`namelint init` adds an empty one to `pyproject.toml` (with
+`--accept-existing`, one holding every current finding), and
+`namelint allow` adds the current findings to it.
+
 The imperative shell. Everything that touches the filesystem or decides
 a process's fate lives here; `checks.py` stays pure.
 """
@@ -12,7 +17,8 @@ import sys
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 
-from namelint import __version__
+from namelint import __version__, allowlist
+from namelint.allowlist import Allowlist, ConfigError
 from namelint.checks import CODES
 from namelint.finding import Finding
 from namelint.report import Reported, as_json, as_stats, as_text
@@ -29,25 +35,91 @@ SKIP_DIRS = frozenset(
 # functions, which is what happened the first time this was measured.
 UNPARSABLE = (SyntaxError, ValueError, RecursionError, OSError, UnicodeDecodeError)
 
+COMMANDS = ("init", "allow")
+
 EXIT_CLEAN = 0
 EXIT_FINDINGS = 1
 EXIT_ERROR = 2
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Lint the given paths and return an exit code.
+    """Run namelint and return an exit code.
 
     0 clean, 1 findings, 2 the tool itself failed.
     """
-    args = _parser().parse_args(argv)
+    argv = list(sys.argv[1:] if argv is None else argv)
+    # Dispatched by hand rather than with argparse subparsers, so that
+    # `namelint src/` keeps working. A directory named `init` is still
+    # reachable as `namelint ./init`.
+    command = argv[0] if argv and argv[0] in COMMANDS else None
+    args = _parser(command).parse_args(argv[1:] if command else argv)
     selected = _selected_codes(args.select, args.ignore)
     if not selected:
         print("error: --select and --ignore leave no checks enabled", file=sys.stderr)
         return EXIT_ERROR
+    config = allowlist.find_config(Path.cwd())
+    try:
+        allow = allowlist.load(config)
+        if command == "init":
+            return _init(config, args.paths, selected, accept=args.accept_existing)
+        if command == "allow":
+            target = config or Path.cwd() / allowlist.CONFIG
+            return _allow(target, allow, args.paths, selected)
+    except ConfigError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_ERROR
 
+    results, functions = _lint(args.paths, selected, allow)
+    _print(results, functions, stats=args.stats, as_jsonl=args.json)
+    return EXIT_FINDINGS if results else EXIT_CLEAN
+
+
+def _init(
+    config: Path | None,
+    paths: Sequence[Path],
+    selected: frozenset[str],
+    *,
+    accept: bool,
+) -> int:
+    """Add an empty `[tool.namelint.allow]`, or with `accept` one holding every finding.
+
+    Refuses a project that already declares an allowlist: that one
+    belongs to `namelint allow`. With no `pyproject.toml` anywhere up the
+    tree, one is created in the current directory.
+    """
+    if allowlist.declared(config):
+        print(
+            f"error: {config} already has {allowlist.HEADER}; use `namelint allow`",
+            file=sys.stderr,
+        )
+        return EXIT_ERROR
+    target = config or Path.cwd() / allowlist.CONFIG
+    if accept:
+        return _allow(target, {}, paths, selected)
+    allowlist.write(target, {})
+    print(f"{target}: added an empty {allowlist.HEADER}")
+    return EXIT_CLEAN
+
+
+def _allow(
+    target: Path, allow: Allowlist, paths: Sequence[Path], selected: frozenset[str]
+) -> int:
+    """Add every finding not yet allowed to the allowlist in `target`."""
+    results, _ = _lint(paths, selected, allow)
+    findings = [finding for _, finding in results]
+    allowlist.write(target, allowlist.merged(allow, findings))
+    added = len({(f.code, f.qualname) for f in findings})
+    print(f"{target}: {added} names added to {allowlist.HEADER}")
+    return EXIT_CLEAN
+
+
+def _lint(
+    paths: Sequence[Path], selected: frozenset[str], allow: Allowlist
+) -> tuple[list[Reported], int]:
+    """Every finding under `paths` not allowed, and the functions scanned."""
     results: list[Reported] = []
     functions = 0
-    for path in _python_files(args.paths):
+    for path in _python_files(paths):
         try:
             tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
         except UNPARSABLE as exc:
@@ -60,11 +132,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         results += [
             (str(path), finding)
             for finding in check_module(tree, path)
-            if finding.code in selected
+            if finding.code in selected and not allowlist.allowed(finding, allow)
         ]
-
-    _print(results, functions, stats=args.stats, as_jsonl=args.json)
-    return EXIT_FINDINGS if results else EXIT_CLEAN
+    return results, functions
 
 
 def _print(
@@ -78,12 +148,31 @@ def _print(
         print(body)
 
 
-def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="namelint",
-        description="Report where a function's name contradicts its body.",
-    )
-    parser.add_argument("paths", nargs="+", type=Path, help="files or directories")
+def _parser(command: str | None) -> argparse.ArgumentParser:
+    if command is None:
+        parser = argparse.ArgumentParser(
+            prog="namelint",
+            description="Report where a function's name contradicts its body.",
+            epilog="commands: `namelint init` adds an allowlist to pyproject.toml;"
+            " `namelint allow` accepts the current findings into it.",
+        )
+        parser.add_argument("paths", nargs="+", type=Path, help="files or directories")
+    else:
+        parser = argparse.ArgumentParser(
+            prog=f"namelint {command}",
+            description=(
+                "Add an empty [tool.namelint.allow] table to pyproject.toml."
+                if command == "init"
+                else "Add every current finding to the allowlist in pyproject.toml."
+            ),
+        )
+        parser.add_argument(
+            "paths",
+            nargs="*",
+            type=Path,
+            default=[Path()],
+            help="files or directories (default: the current directory)",
+        )
     parser.add_argument(
         "--select",
         action="append",
@@ -98,10 +187,19 @@ def _parser() -> argparse.ArgumentParser:
         metavar="CODE",
         help="skip these checks (repeatable)",
     )
-    parser.add_argument("--json", action="store_true", help="one JSON object per line")
-    parser.add_argument(
-        "--stats", action="store_true", help="counts per code, for calibration"
-    )
+    if command == "init":
+        parser.add_argument(
+            "--accept-existing",
+            action="store_true",
+            help="fill the allowlist with every current finding",
+        )
+    if command is None:
+        parser.add_argument(
+            "--json", action="store_true", help="one JSON object per line"
+        )
+        parser.add_argument(
+            "--stats", action="store_true", help="counts per code, for calibration"
+        )
     parser.add_argument(
         "--version", action="version", version=f"namelint {__version__}"
     )

@@ -26,6 +26,13 @@ class Finding:
     name: str
     message: str
     evidence: str = ""
+    # The enclosing class, set by the visitor, so an allowlist entry can
+    # say `User.user_name` rather than every `user_name` in the tree.
+    owner: str | None = None
+
+    @property
+    def qualname(self) -> str:
+        return f"{self.owner}.{self.name}" if self.owner else self.name
 
     def rendered(self, path: str) -> str:
         """Render the one-line form every editor already parses."""
@@ -42,3 +49,8 @@ class Context:
 
     is_test_module: bool = False
     class_name: str | None = None
+    # The names of every method in the same class, this one included.
+    siblings: tuple[str, ...] = ()
+    # Word forms that are predominantly verbs, for NAM102. Empty means
+    # unknown, and unknown is silence.
+    verbs: frozenset[str] = frozenset()

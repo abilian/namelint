@@ -8,20 +8,30 @@ point and a wrapper rather than a second implementation.
 from __future__ import annotations
 
 import ast
+import dataclasses
 from collections.abc import Iterator
 from pathlib import Path
 
 from namelint.checks import Function, check_function
 from namelint.finding import Context, Finding
+from namelint.verbs import VERBS
 
 
 def check_module(tree: ast.Module, path: Path) -> list[Finding]:
     """Every finding in one parsed module."""
     is_test = is_test_module(path)
     found: list[Finding] = []
-    for node, class_name in _functions(tree):
-        ctx = Context(is_test_module=is_test, class_name=class_name)
-        found += check_function(node, ctx)
+    for node, owner in _functions(tree):
+        ctx = Context(
+            is_test_module=is_test,
+            class_name=owner.name if owner else None,
+            siblings=_methods(owner) if owner else (),
+            verbs=VERBS,
+        )
+        found += [
+            dataclasses.replace(finding, owner=ctx.class_name)
+            for finding in check_function(node, ctx)
+        ]
     return sorted(found, key=lambda f: (f.line, f.col, f.code))
 
 
@@ -42,22 +52,30 @@ def is_test_module(path: Path) -> bool:
     return any(part in {"tests", "test"} for part in path.parts[:-1])
 
 
-def _functions(tree: ast.Module) -> Iterator[tuple[Function, str | None]]:
+def _functions(tree: ast.Module) -> Iterator[tuple[Function, ast.ClassDef | None]]:
     """Every function in the module, with the class it belongs to.
 
     Nested functions are skipped. A closure's name is private to its
     parent, so none of these rules has anything to say about it.
     """
-    stack: list[tuple[ast.AST, str | None]] = [(tree, None)]
+    stack: list[tuple[ast.AST, ast.ClassDef | None]] = [(tree, None)]
     while stack:
-        node, class_name = stack.pop()
+        node, owner = stack.pop()
         for child in ast.iter_child_nodes(node):
             if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                yield child, class_name
+                yield child, owner
             elif isinstance(child, ast.ClassDef):
-                stack.append((child, child.name))
+                stack.append((child, child))
             else:
-                stack.append((child, class_name))
+                stack.append((child, owner))
+
+
+def _methods(owner: ast.ClassDef) -> tuple[str, ...]:
+    return tuple(
+        child.name
+        for child in owner.body
+        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef))
+    )
 
 
 __all__ = ["Function", "check_module", "check_source", "is_test_module"]
