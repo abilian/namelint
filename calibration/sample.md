@@ -4,10 +4,10 @@ Seed 0, up to 30 per code. Mark each `ok` (a real finding) or
 `fp` (a false positive). A code above roughly two false positives in
 thirty gets a narrower detector, drops to advisory, or is cut.
 
-## NAM101 (39 findings, 30 sampled)
+## NAM101 (26 findings, 26 sampled)
 
-- [ ] `cpython/Lib/test/pickletester.py:4335` `setUp` — contains an assertion, takes no arguments
-      `def setUp(self):`
+- [ ] `cpython/Lib/test/_test_multiprocessing.py:1860` `task` — contains an assertion, takes no arguments
+      `def task(self):`
 - [ ] `cpython/Lib/test/support/interpreters/__init__.py:92` `get_main` — contains an assertion, takes no arguments
       `def get_main():`
 - [ ] `cpython/Lib/test/support/interpreters/queues.py:293` `get_nowait` — contains an assertion, takes no arguments
@@ -18,8 +18,6 @@ thirty gets a narrower detector, drops to advisory, or is cut.
       `def import_singlephase():`
 - [ ] `cpython/Lib/test/test_capi/test_misc.py:1622` `run` — contains an assertion, takes no arguments
       `def run(self):`
-- [ ] `cpython/Lib/test/test_email/test_email.py:4604` `setUp` — contains an assertion, takes no arguments
-      `def setUp(self):`
 - [ ] `cpython/Lib/test/test_finalization.py:102` `check_sanity` — contains an assertion, takes no arguments
       `def check_sanity(self):`
 - [ ] `cpython/Lib/test/test_finalization.py:234` `check_sanity` — contains an assertion, takes no arguments
@@ -28,22 +26,10 @@ thirty gets a narrower detector, drops to advisory, or is cut.
       `def check_sanity(self):`
 - [ ] `cpython/Lib/test/test_ftplib.py:293` `start` — contains an assertion, takes no arguments
       `def start(self):`
-- [ ] `cpython/Lib/test/test_import/__init__.py:1413` `tearDown` — contains an assertion, takes no arguments
-      `def tearDown(self):`
-- [ ] `cpython/Lib/test/test_import/__init__.py:1563` `setUp` — contains an assertion, takes no arguments
-      `def setUp(self):`
+- [ ] `cpython/Lib/test/test_ftplib.py:308` `stop` — contains an assertion, takes no arguments
+      `def stop(self):`
 - [ ] `cpython/Lib/test/test_importlib/extension/test_case_sensitivity.py:16` `find_spec` — contains an assertion, takes no arguments
       `def find_spec(self):`
-- [ ] `cpython/Lib/test/test_importlib/extension/test_loader.py:107` `setUp` — contains an assertion, takes no arguments
-      `def setUp(self):`
-- [ ] `cpython/Lib/test/test_importlib/extension/test_loader.py:195` `setUp` — contains an assertion, takes no arguments
-      `def setUp(self):`
-- [ ] `cpython/Lib/test/test_importlib/test_abc.py:28` `setUp` — contains an assertion, takes no arguments
-      `def setUp(self):`
-- [ ] `cpython/Lib/test/test_os.py:2922` `setUp` — contains an assertion, takes no arguments
-      `def setUp(self):`
-- [ ] `cpython/Lib/test/test_os.py:3096` `setUp` — contains an assertion, takes no arguments
-      `def setUp(self):`
 - [ ] `cpython/Lib/test/test_patma.py:3534` `assertRaises` — contains an assertion, takes no arguments
       `def assertRaises(*_, **__):`
 - [ ] `cpython/Lib/test/test_poplib.py:223` `start` — contains an assertion, takes no arguments
@@ -52,8 +38,12 @@ thirty gets a narrower detector, drops to advisory, or is cut.
       `def stop(self):`
 - [ ] `cpython/Lib/test/test_statistics.py:1630` `prepare_data` — contains an assertion, takes no arguments
       `def prepare_data(self):`
+- [ ] `cpython/Lib/test/test_xml_etree_c.py:258` `install_tests` — contains an assertion, takes no arguments
+      `def install_tests():`
 - [ ] `pydantic/pydantic-core/tests/validators/test_enums.py:467` `support_custom_new_method` — contains an assertion, takes no arguments
       `def support_custom_new_method() -> None:`
+- [ ] `pydantic/pydantic-core/tests/validators/test_model_fields.py:714` `get_int_key` — contains an assertion, takes no arguments
+      `def get_int_key():`
 - [ ] `pydantic/pydantic-core/tests/validators/test_model_fields.py:733` `get_custom_getitem` — contains an assertion, takes no arguments
       `def get_custom_getitem():`
 - [ ] `pydantic/pydantic-core/tests/validators/test_typed_dict.py:586` `get_int_key` — contains an assertion, takes no arguments
@@ -62,8 +52,10 @@ thirty gets a narrower detector, drops to advisory, or is cut.
       `def get_custom_getitem():`
 - [ ] `pydantic/pydantic-core/tests/validators/test_uuid.py:233` `uuid_safety_unknown` — contains an assertion, takes no arguments
       `def uuid_safety_unknown():`
-- [ ] `pytest/testing/example_scripts/unittest/test_setup_skip_module.py:9` `setUpModule` — contains an assertion, takes no arguments
-      `def setUpModule():`
+- [ ] `pydantic/tests/test_validate_call.py:70` `validate_bare_none` — contains an assertion, takes no arguments
+      `def validate_bare_none() -> None:`
+- [ ] `pytest/testing/code/test_source.py:663` `XXX_test_expression_multiline` — contains an assertion, takes no arguments
+      `def XXX_test_expression_multiline() -> None:`
 - [ ] `rich/tests/test_table.py:16` `render_tables` — contains an assertion, takes no arguments
       `def render_tables():`
 
@@ -117,6 +109,8 @@ thirty gets a narrower detector, drops to advisory, or is cut.
 
 ## NAM104 (58 findings, 30 sampled)
 
+- [ ] `cpython/Lib/bdb.py:427` `set_break` — returns 'Line %s:%d does not exist' % (filename, lineno)
+      `def set_break(self, filename, lineno, temporary=False, cond=None,`
 - [ ] `cpython/Lib/bdb.py:484` `clear_bpbynumber` — returns str(err)
       `def clear_bpbynumber(self, arg):`
 - [ ] `cpython/Lib/bdb.py:497` `clear_all_file_breaks` — returns 'There are no breakpoints in %s' % filename
@@ -159,24 +153,22 @@ thirty gets a narrower detector, drops to advisory, or is cut.
       `def insert_json_output(markdown: str) -> str:`
 - [ ] `pydantic/pydantic/_internal/_validate_call.py:29` `update_wrapper_attributes` — returns wrapper_function
       `def update_wrapper_attributes(wrapped: ValidateCallSupportedTypes, wrapper: Callable[..., Any]):`
+- [ ] `pydantic/pydantic/deprecated/decorator.py:145` `init_model_instance` — returns self.model(**values)
+      `def init_model_instance(self, *args: Any, **kwargs: Any) -> BaseModel:`
+- [ ] `pydantic/pydantic/v1/decorator.py:128` `init_model_instance` — returns self.model(**values)
+      `def init_model_instance(self, *args: Any, **kwargs: Any) -> BaseModel:`
 - [ ] `pydantic/pydantic/v1/mypy.py:772` `set_values_dict` — returns {k: v for k, v in self.__dict__.items() if v is not None}
       `def set_values_dict(self) -> Dict[str, Any]:`
-- [ ] `pydantic/pydantic/v1/types.py:504` `set_length_validator` — returns v
-      `def set_length_validator(cls, v: 'Optional[Set[T]]') -> 'Optional[Set[T]]':`
-- [ ] `pydantic/pydantic/v1/validators.py:280` `set_validator` — returns set(v)
-      `def set_validator(v: Any) -> Set[Any]:`
+- [ ] `pytest/src/_pytest/fixtures.py:2403` `show_fixtures_per_test` — returns wrap_session(config, _show_fixtures_per_test)
+      `def show_fixtures_per_test(config: Config) -> int | ExitCode:`
 - [ ] `rich/rich/cells.py:299` `set_cell_size` — returns text
       `def set_cell_size(text: str, total: int, unicode_version: str = "auto") -> str:`
-- [ ] `rich/rich/console.py:194` `update_width` — returns options
-      `def update_width(self, width: int) -> "ConsoleOptions":`
-- [ ] `rich/rich/console.py:207` `update_height` — returns options
-      `def update_height(self, height: int) -> "ConsoleOptions":`
-- [ ] `rich/rich/console.py:220` `reset_height` — returns options
-      `def reset_height(self) -> "ConsoleOptions":`
 - [ ] `rich/rich/segment.py:426` `set_shape` — returns shaped_lines
       `def set_shape(`
 - [ ] `rich/rich/style.py:649` `clear_meta_and_links` — returns style
       `def clear_meta_and_links(self) -> "Style":`
+- [ ] `rich/rich/style.py:671` `update_link` — returns style
+      `def update_link(self, link: Optional[str] = None) -> "Style":`
 
 ## NAM105 (27 findings, 27 sampled)
 
