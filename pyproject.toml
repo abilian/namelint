@@ -1,6 +1,6 @@
 [project]
 name = "namelint"
-dynamic = ["version"]
+version = "0.2.0"
 description = "Reports where a Python function's name contradicts its body."
 readme = "README.md"
 license = "Apache-2.0"
@@ -46,11 +46,6 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-# One place for the version: `namelint.__version__`, which `--version`
-# prints.
-[tool.hatch.version]
-path = "src/namelint/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/namelint"]
