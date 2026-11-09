@@ -10,6 +10,7 @@ namelint check --no-allowlist src/            # report everything, allowlist or 
 namelint check --exit-zero src/               # report findings, exit 0 anyway
 namelint check --force-exclude FILE...        # apply exclude to named files too
 namelint check --show-settings                # the settings in force, and their file
+namelint check --explain src/                 # then explain each check that fired
 ```
 
 Without `--select`, every check runs except the opt-in `NAM107`. Run `namelint check --help` for the full list of options.
@@ -55,6 +56,24 @@ Each finding is one JSON object on its own line. It includes the finding's `qual
 ### `github`
 
 This format prints GitHub Actions annotations, which show up on the pull request's diff. See [CI and pre-commit](ci.md).
+
+## Explanations
+
+`--explain` follows the report with an explanation of each check that fired, once per check, in code order. It is the same text `namelint explain CODE` prints:
+
+```
+$ namelint check --explain --level junior src/
+src/app/users.py
+  42:5   NAM106  get_user performs I/O (calls httpx.get)
+
+1 finding in 1 file
+
+NAM106: a get_ that performs I/O
+
+In Python, `get` means a cheap lookup: `dict.get`, `getattr`, `os.environ.get`. ...
+```
+
+`--level` sets the depth: `junior` for what the convention is, with an example; `senior` (the default) for why it matters and when to break it; `expert` for how the check decides and where it goes wrong. `--level` without `--explain` is an error, and so is `--explain` with the `json` or `github` format, since explanations would break their output.
 
 ## Statistics
 

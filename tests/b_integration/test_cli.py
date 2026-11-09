@@ -303,3 +303,40 @@ def test_show_settings_prints_the_resolved_settings_and_lints_nothing(
     assert '"NAM106"' in out
     assert '"NAM108"' not in out
     assert "get_user" not in out
+
+
+def test_explain_follows_the_report_once_per_check(tmp_path: Path, capsys) -> None:
+    write(tmp_path, "app.py", DIRTY + DIRTY.replace("get_user", "get_team"))
+
+    assert main(["check", str(tmp_path), "--explain"]) == EXIT_FINDINGS
+
+    out = capsys.readouterr().out
+    report, _, explained = out.partition("2 findings in 1 file\n")
+    assert "get_team" in report
+    assert explained.count("NAM106: a get_ that performs I/O") == 1
+    assert "The caller of a `get_`" in explained  # the senior section
+
+
+def test_explain_takes_a_level(tmp_path: Path, capsys) -> None:
+    write(tmp_path, "app.py", DIRTY)
+
+    main(["check", str(tmp_path), "--explain", "--level", "junior"])
+
+    assert "In Python, `get` means a cheap lookup" in capsys.readouterr().out
+
+
+def test_level_without_explain_is_an_error(tmp_path: Path, capsys) -> None:
+    write(tmp_path, "app.py", DIRTY)
+
+    assert main(["check", str(tmp_path), "--level", "junior"]) == EXIT_ERROR
+    assert "--level needs --explain" in capsys.readouterr().err
+
+
+def test_explain_refuses_machine_formats(tmp_path: Path, capsys) -> None:
+    write(tmp_path, "app.py", DIRTY)
+
+    assert (
+        main(["check", str(tmp_path), "--explain", "--output-format", "json"])
+        == EXIT_ERROR
+    )
+    assert capsys.readouterr().out == ""

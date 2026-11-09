@@ -7,10 +7,15 @@ from pathlib import Path
 
 from cyclopts import Parameter
 
+from namelint.cli.explain import (
+    Level,
+    explanation,
+)
 from namelint.cli.lint import (
     EXIT_CLEAN,
     EXIT_FINDINGS,
     Codes,
+    UsageError,
     lint_paths,
     project,
     selected_codes,
@@ -63,6 +68,22 @@ class CheckOptions:
     """Print the settings this run resolves to, and where they came from,
     then exit."""
 
+    explain: bool = False
+    """After the report, explain each check that fired, once per check."""
+
+    level: Level | None = None
+    """How deep --explain goes: junior, senior (default) or expert."""
+
+
+class LevelWithoutExplainError(UsageError):
+    def __init__(self) -> None:
+        super().__init__("--level needs --explain")
+
+
+class ExplainFormatError(UsageError):
+    def __init__(self, output: str) -> None:
+        super().__init__(f"--explain does not combine with --output-format {output}")
+
 
 def check(*paths: Path, options: CheckOptions | None = None) -> int:
     """Report where a function's name contradicts its body.
@@ -76,6 +97,11 @@ def check(*paths: Path, options: CheckOptions | None = None) -> int:
     """
     opts = options or CheckOptions()
     config, settings = project()
+    output = opts.output_format or settings.output_format
+    if opts.level and not opts.explain:
+        raise LevelWithoutExplainError
+    if opts.explain and output in {"json", "github"}:
+        raise ExplainFormatError(output)
     selected = selected_codes(settings, opts.select, opts.ignore)
     if opts.show_settings:
         print(as_settings(config, settings, selected))
@@ -87,7 +113,10 @@ def check(*paths: Path, options: CheckOptions | None = None) -> int:
     if opts.stats:
         print(as_stats(results, scanned))
     else:
-        _print(results, opts.output_format or settings.output_format)
+        _print(results, output)
+    if opts.explain:
+        for code in sorted({finding.code for _, finding in results}):
+            print(f"\n{explanation(code, opts.level or 'senior')}")
     return EXIT_FINDINGS if results and not opts.exit_zero else EXIT_CLEAN
 
 

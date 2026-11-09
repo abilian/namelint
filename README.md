@@ -31,6 +31,8 @@ namelint check --stats src/                   # counts per check, with a rate
 namelint check --no-allowlist src/            # report everything, allowlist or not
 namelint check --exit-zero src/               # report findings, exit 0 anyway
 namelint check --show-settings                # the settings in force, and their file
+namelint check --explain src/                 # then explain each check that fired
+namelint check --explain --level junior src/  # ...for a reader new to the conventions
 namelint init                                 # add [tool.namelint] to pyproject.toml
 namelint init --accept-existing               # ...and accept every current finding
 namelint allow --select NAM108 src/           # accept the current findings of one check
