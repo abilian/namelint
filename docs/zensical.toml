@@ -9,6 +9,7 @@ site_author = "Abilian SAS"
 # src/checks/ and src/changelog.md are copied in by `make preprocess`.
 docs_dir = "src"
 site_dir = "site"
+site_url = "https://namelint.lab.abilian.com/"
 
 repo_url = "https://github.com/abilian/namelinter"
 edit_uri = "edit/main/docs/src"

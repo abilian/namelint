@@ -1,6 +1,6 @@
 [project]
 name = "namelint"
-version = "0.3.0.dev1"
+version = "0.3.0"
 description = "Reports where a Python function's name contradicts its body."
 readme = "README.md"
 license = "Apache-2.0"
