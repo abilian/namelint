@@ -3,6 +3,12 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] 2026-11-09
+
+### Added
+
+- `namelint check --explain` follows the report with an explanation of each check that fired, once per check. `--level junior|senior|expert` sets the depth.
+
 ## [0.3.0] 2026-11-09
 
 ### Added
@@ -19,7 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `per-file-ignores` in `[tool.namelint]` skips checks in files matching a path pattern.
 - Directory walks skip what git ignores. Set `respect-gitignore = false` to walk all files.
 - `namelint allow --prune` also removes allowlist entries that match no finding.
-- `namelint check --explain` follows the report with an explanation of each check that fired, once per check. `--level junior|senior|expert` sets the depth.
 
 ### Changed
 
