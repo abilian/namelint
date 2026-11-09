@@ -3,6 +3,33 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `--output-format` chooses the output: `grouped` (the default) prints each file once with its findings below it, `full` adds a hint under each finding, `concise` is the former one-line output for editors and CI, and `json` is the former `--json`.
+- JSON output includes `hint`. `Finding` has a new `hint` field.
+- A `[tool.namelint]` table in `pyproject.toml` sets `select`, `ignore`, `exclude` and `output-format`. The command line's `--select` and `--output-format` replace the configured values, and `--ignore` adds to them. An unknown key is an error.
+- `namelint explain [CODE] [--level junior|senior|expert]` explains the naming conventions, or one check, at three depths.
+- `--output-format github` prints GitHub Actions annotations.
+- `--exit-zero` reports findings and exits 0.
+- `--show-settings` prints the resolved settings with the path of their `pyproject.toml`.
+- `--force-exclude` applies `exclude` to files named on the command line, for pre-commit.
+- A pre-commit hook, `namelint`, in `.pre-commit-hooks.yaml`.
+- `per-file-ignores` in `[tool.namelint]` skips checks in files matching a path pattern.
+- Directory walks skip what git ignores. Set `respect-gitignore = false` to walk all files.
+- `namelint allow --prune` also removes allowlist entries that match no finding.
+
+### Changed
+
+- Linting is now `namelint check PATH...`. A bare `namelint PATH...` is an error. With no path, `check` lints the current directory.
+- `namelint init` writes `[tool.namelint]` with each setting at its default, as well as the empty allowlist. It refuses to run when `[tool.namelint]` already exists.
+- `--json` is replaced by `--output-format json`.
+- The command line is built on Cyclopts, namelint's first runtime dependency. The checks still import nothing beyond `ast`.
+- The default output is grouped by file. Use `--output-format concise` for the previous `path:line:col:` lines.
+- `Finding.message` no longer contains the advice, which moved to `Finding.hint`.
+- A returned expression quoted in a `NAM103` or `NAM104` message is cut at 40 characters.
+
 ## [0.2.0] - 2026-10-15
 
 ### Added

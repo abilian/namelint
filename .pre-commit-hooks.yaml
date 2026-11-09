@@ -1,0 +1,15 @@
+# For other projects' .pre-commit-config.yaml:
+#
+#   - repo: https://github.com/abilian/namelinter
+#     rev: v0.3.0
+#     hooks:
+#       - id: namelint
+#
+# pre-commit names every file it passes, so --force-exclude keeps the
+# project's `exclude` patterns in force.
+- id: namelint
+  name: namelint
+  description: Report where a Python function's name contradicts its body.
+  entry: namelint check --force-exclude
+  language: python
+  types: [python]

@@ -56,11 +56,12 @@ A return is read as boolean when it is a bool literal, a comparison, a `not`, an
 ## 3. Commands
 
 ```sh
-namelint PATH...                 # walk, report, exit 1 if anything fired
-namelint --json PATH...          # one JSON object per finding, for counting
-namelint --stats PATH...         # counts per code, per file; the calibration view
-namelint --select NAM106 PATH... # one rule only
-namelint --ignore NAM104 PATH... # all but one
+namelint check PATH...                        # walk, report, exit 1 if anything fired
+namelint check --output-format json PATH...   # one JSON object per finding, for counting
+namelint check --stats PATH...                # counts per code; the calibration view
+namelint check --select NAM106 PATH...        # one rule only
+namelint check --ignore NAM104 PATH...        # all but one
+namelint explain [CODE] [--level LEVEL]       # the conventions, for a reader new to them
 namelint --version
 ```
 
@@ -178,7 +179,7 @@ Predictions recorded now so the measurement can contradict them:
 ### Ask first
 
 - Adding a ninth check. Eight is the set the note argued for; a ninth needs the same argument and the same calibration.
-- Adding a runtime dependency. There are none today. That is a feature.
+- Adding a runtime dependency. Cyclopts, for the command line, is the only one, added in 0.3.0. The checks import nothing beyond `ast`.
 - Shipping the flake8 adapter, which needs a code-prefix decision.
 - Extending the allowlist beyond names (inline comments, paths).
 

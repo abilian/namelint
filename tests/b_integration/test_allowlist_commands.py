@@ -11,6 +11,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
+from namelint import config
 from namelint.cli import EXIT_CLEAN, EXIT_ERROR, EXIT_FINDINGS, main
 
 SOURCE = (
@@ -44,7 +45,25 @@ def test_init_adds_an_empty_table_and_accepts_nothing(
     assert main(["init"]) == EXIT_CLEAN
 
     assert allow_table(config) == {}
-    assert main(["src"]) == EXIT_FINDINGS
+    assert main(["check", "src"]) == EXIT_FINDINGS
+
+
+def test_init_writes_every_setting_at_its_default(tmp_path: Path, monkeypatch) -> None:
+    """What `init` writes must read back as what no table at all means."""
+    config_path = project(tmp_path, monkeypatch)
+
+    main(["init"])
+
+    assert config.load(config_path) == config.Settings(allow={}, root=tmp_path)
+
+
+def test_init_refuses_an_existing_namelint_table(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    project(tmp_path, monkeypatch, PROJECT + "\n[tool.namelint]\nignore = []\n")
+
+    assert main(["init"]) == EXIT_ERROR
+    assert "already has [tool.namelint]" in capsys.readouterr().err
 
 
 def test_init_accept_existing_records_every_finding(
@@ -58,7 +77,7 @@ def test_init_accept_existing_records_every_finding(
         "NAM104": ["set_shape"],
         "NAM108": ["User.user_name"],
     }
-    assert main(["src"]) == EXIT_CLEAN
+    assert main(["check", "src"]) == EXIT_CLEAN
 
 
 def test_init_keeps_the_rest_of_the_file(tmp_path: Path, monkeypatch) -> None:
@@ -129,7 +148,7 @@ def test_allow_records_only_the_selected_code(tmp_path: Path, monkeypatch) -> No
     main(["allow", "--select", "NAM108", "src"])
 
     assert allow_table(config) == {"NAM108": ["User.user_name"]}
-    assert main(["src"]) == EXIT_FINDINGS
+    assert main(["check", "src"]) == EXIT_FINDINGS
 
 
 def test_allow_refuses_an_allowlist_it_cannot_rewrite(
@@ -163,3 +182,44 @@ def test_escaped_entries_survive_a_rewrite(tmp_path: Path, monkeypatch) -> None:
     main(["allow", "src"])
 
     assert "a\\b" in allow_table(config)["NAM104"]
+
+
+def test_prune_removes_entries_that_match_nothing(tmp_path: Path, monkeypatch) -> None:
+    config_path = project(
+        tmp_path,
+        monkeypatch,
+        '[tool.namelint.allow]\nNAM104 = ["set_shape", "gone_function"]\n'
+        'NAM105 = ["also_gone"]\n',
+    )
+
+    main(["allow", "--prune", "src"])
+
+    assert allow_table(config_path) == {
+        "NAM104": ["set_shape"],
+        "NAM108": ["User.user_name"],
+    }
+
+
+def test_prune_keeps_the_entries_of_a_code_that_did_not_run(
+    tmp_path: Path, monkeypatch
+) -> None:
+    config_path = project(
+        tmp_path, monkeypatch, '[tool.namelint.allow]\nNAM108 = ["Old.stale"]\n'
+    )
+
+    main(["allow", "--prune", "--select", "NAM104", "src"])
+
+    assert allow_table(config_path) == {
+        "NAM104": ["set_shape"],
+        "NAM108": ["Old.stale"],
+    }
+
+
+def test_prune_keeps_a_wildcard_that_still_matches(tmp_path: Path, monkeypatch) -> None:
+    config_path = project(
+        tmp_path, monkeypatch, '[tool.namelint.allow]\nNAM104 = ["set_*"]\n'
+    )
+
+    main(["allow", "--prune", "--select", "NAM104", "src"])
+
+    assert allow_table(config_path) == {"NAM104": ["set_*"]}

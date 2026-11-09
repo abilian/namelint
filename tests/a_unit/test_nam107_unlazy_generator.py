@@ -128,5 +128,5 @@ def test_the_suggested_name_keeps_a_private_name_private() -> None:
 
     [finding] = lint_source(source, MODULE)
 
-    assert "_iter_entry" in finding.message
-    assert "iter__entry" not in finding.message
+    assert "_iter_entry" in finding.hint
+    assert "iter__entry" not in finding.hint

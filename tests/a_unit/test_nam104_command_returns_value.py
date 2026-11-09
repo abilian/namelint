@@ -74,3 +74,12 @@ def test_a_two_sided_verb_is_left_alone() -> None:
     source = "def load_config(path):\n    return parse(path)\n"
 
     assert codes(source) == []
+
+
+def test_a_long_returned_value_is_cut_in_the_message() -> None:
+    """A constructor call with ten keywords must not make a 200-column line."""
+    source = f"def clear_cookie():\n    return Cookie(key={'k' * 80!r})\n"
+
+    (finding,) = lint_source(source, MODULE)
+
+    assert finding.message.endswith("returns Cookie(key='kkkkkkkkkkkkkkkkkkkkkkkkkkk…")

@@ -109,11 +109,11 @@ thirty gets a narrower detector, drops to advisory, or is cut.
 
 ## NAM104 (58 findings, 30 sampled)
 
-- [ ] `cpython/Lib/bdb.py:427` `set_break` — returns 'Line %s:%d does not exist' % (filename, lineno)
+- [ ] `cpython/Lib/bdb.py:427` `set_break` — returns 'Line %s:%d does not exist' % (filename…
       `def set_break(self, filename, lineno, temporary=False, cond=None,`
 - [ ] `cpython/Lib/bdb.py:484` `clear_bpbynumber` — returns str(err)
       `def clear_bpbynumber(self, arg):`
-- [ ] `cpython/Lib/bdb.py:497` `clear_all_file_breaks` — returns 'There are no breakpoints in %s' % filename
+- [ ] `cpython/Lib/bdb.py:497` `clear_all_file_breaks` — returns 'There are no breakpoints in %s' % file…
       `def clear_all_file_breaks(self, filename):`
 - [ ] `cpython/Lib/bdb.py:512` `clear_all_breaks` — returns 'There are no breakpoints'
       `def clear_all_breaks(self):`
@@ -123,7 +123,7 @@ thirty gets a narrower detector, drops to advisory, or is cut.
       `def update_wrapper(wrapper,`
 - [ ] `cpython/Lib/idlelib/config.py:829` `save_all` — returns changed
       `def save_all(self):`
-- [ ] `cpython/Lib/idlelib/configdialog.py:2047` `set_extension_value` — returns self.ext_userCfg.SetOption(section, name, value)
+- [ ] `cpython/Lib/idlelib/configdialog.py:2047` `set_extension_value` — returns self.ext_userCfg.SetOption(section, nam…
       `def set_extension_value(self, section, opt):`
 - [ ] `cpython/Lib/idlelib/debugger_r.py:108` `set_break` — returns msg
       `def set_break(self, filename, lineno):`
@@ -147,9 +147,9 @@ thirty gets a narrower detector, drops to advisory, or is cut.
       `def set_data(self, path, data):`
 - [ ] `cpython/Lib/turtledemo/__main__.py:274` `update_mousewheel` — returns self.increase_size()
       `def update_mousewheel(self, event):`
-- [ ] `httpx/tests/test_auth.py:107` `set_cookies` — returns httpx.Response(content=b'Auth required', status_code=401, headers=headers)
+- [ ] `httpx/tests/test_auth.py:107` `set_cookies` — returns httpx.Response(content=b'Auth required'…
       `def set_cookies(request: httpx.Request) -> httpx.Response:`
-- [ ] `pydantic/docs/plugins/main.py:201` `insert_json_output` — returns re.sub('(^ *```)([^\\n]*?output="json"[^\\n]*?\\n)(.+?)\\1', replace_json, markdown, flags=re.M | re.S)
+- [ ] `pydantic/docs/plugins/main.py:201` `insert_json_output` — returns re.sub('(^ *```)([^\\n]*?output="json"[…
       `def insert_json_output(markdown: str) -> str:`
 - [ ] `pydantic/pydantic/_internal/_validate_call.py:29` `update_wrapper_attributes` — returns wrapper_function
       `def update_wrapper_attributes(wrapped: ValidateCallSupportedTypes, wrapper: Callable[..., Any]):`
@@ -157,9 +157,9 @@ thirty gets a narrower detector, drops to advisory, or is cut.
       `def init_model_instance(self, *args: Any, **kwargs: Any) -> BaseModel:`
 - [ ] `pydantic/pydantic/v1/decorator.py:128` `init_model_instance` — returns self.model(**values)
       `def init_model_instance(self, *args: Any, **kwargs: Any) -> BaseModel:`
-- [ ] `pydantic/pydantic/v1/mypy.py:772` `set_values_dict` — returns {k: v for k, v in self.__dict__.items() if v is not None}
+- [ ] `pydantic/pydantic/v1/mypy.py:772` `set_values_dict` — returns {k: v for k, v in self.__dict__.items()…
       `def set_values_dict(self) -> Dict[str, Any]:`
-- [ ] `pytest/src/_pytest/fixtures.py:2403` `show_fixtures_per_test` — returns wrap_session(config, _show_fixtures_per_test)
+- [ ] `pytest/src/_pytest/fixtures.py:2403` `show_fixtures_per_test` — returns wrap_session(config, _show_fixtures_per…
       `def show_fixtures_per_test(config: Config) -> int | ExitCode:`
 - [ ] `rich/rich/cells.py:299` `set_cell_size` — returns text
       `def set_cell_size(text: str, total: int, unicode_version: str = "auto") -> str:`

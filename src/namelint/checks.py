@@ -49,8 +49,8 @@ def find_uncollected_test(node: Function, ctx: Context) -> Finding | None:
     return _finding(
         "NAM101",
         node,
-        f"{node.name} asserts but pytest will not collect it;"
-        f" rename to test_{node.name}",
+        f"{node.name} asserts but pytest will not collect it",
+        hint=f"rename to test_{node.name}",
         evidence="contains an assertion, takes no arguments",
     )
 
@@ -129,8 +129,8 @@ def find_property_named_as_verb(node: Function, ctx: Context) -> Finding | None:
     return _finding(
         "NAM102",
         node,
-        f"{node.name} is a property but opens with the verb {head!r};"
-        " name what it holds, or make it a method",
+        f"{node.name} is a property but opens with the verb {head!r}",
+        hint="name what it holds, or make it a method",
         evidence=f"@property, {head!r} is predominantly a verb",
     )
 
@@ -214,8 +214,8 @@ def _predicate_finding(node: Function, evidence: str, shown: str) -> Finding:
     return _finding(
         "NAM103",
         node,
-        f"{node.name} reads as a predicate but {evidence};"
-        f" callers will test {shown} for truth",
+        f"{node.name} reads as a predicate but {evidence}",
+        hint=f"callers will test {shown} for truth",
         evidence=evidence,
     )
 
@@ -317,9 +317,9 @@ def _non_bool_return(node: Function) -> str | None:
             # `None` is an early exit in half the predicates ever written.
             if isinstance(value.value, bool) or value.value is None:
                 continue
-            return ast.unparse(value)
+            return _shown(value)
         if isinstance(value, _NON_BOOL_NODES):
-            return ast.unparse(value)
+            return _shown(value)
     return None
 
 
@@ -385,12 +385,12 @@ def find_command_returns_value(node: Function, _ctx: Context) -> Finding | None:
         return None
     for value in _returned_values(node):
         if not _command_status(value, node.name):
-            shown = ast.unparse(value)
+            shown = _shown(value)
             return _finding(
                 "NAM104",
                 node,
-                f"{node.name} reads as a command but returns {shown};"
-                " name it for what it returns, or return nothing",
+                f"{node.name} reads as a command but returns {shown}",
+                hint="name it for what it returns, or return nothing",
                 evidence=f"returns {shown}",
             )
     return None
@@ -427,8 +427,8 @@ def find_query_returns_none(node: Function, _ctx: Context) -> Finding | None:
     return _finding(
         "NAM105",
         node,
-        f"{node.name} reads as a query but returns None on every path;"
-        " return the value, or name it as a command",
+        f"{node.name} reads as a query but returns None on every path",
+        hint="return the value, or name it as a command",
         evidence="no return carries a value",
     )
 
@@ -518,8 +518,8 @@ def find_get_performs_io(node: Function, _ctx: Context) -> Finding | None:
     return _finding(
         "NAM106",
         node,
-        f"{node.name} performs I/O (calls {call}); get_ promises a cheap"
-        " lookup, use fetch_, load_ or read_",
+        f"{node.name} performs I/O (calls {call})",
+        hint="get_ promises a cheap lookup, use fetch_, load_ or read_",
         evidence=f"calls {call}",
     )
 
@@ -588,7 +588,8 @@ def find_unlazy_generator(node: Function, _ctx: Context) -> Finding | None:
     return _finding(
         "NAM107",
         node,
-        f"{node.name} is a generator; name it {_lazy_name(node.name)} or use a plural",
+        f"{node.name} is a generator",
+        hint=f"name it {_lazy_name(node.name)} or use a plural",
         evidence="contains yield",
     )
 
@@ -653,8 +654,8 @@ def find_method_repeats_class(node: Function, ctx: Context) -> Finding | None:
     return _finding(
         "NAM108",
         node,
-        f"{node.name} repeats its class name {ctx.class_name};"
-        " the call site already says it",
+        f"{node.name} repeats its class name {ctx.class_name}",
+        hint="the call site already says it",
         evidence=f"method of {ctx.class_name}",
     )
 
@@ -712,8 +713,23 @@ def _own_nodes(node: Function) -> Iterator[ast.AST]:
         stack.extend(ast.iter_child_nodes(current))
 
 
-def _finding(code: str, node: Function, message: str, *, evidence: str) -> Finding:
-    return Finding(code, node.lineno, node.col_offset + 1, node.name, message, evidence)
+def _finding(
+    code: str, node: Function, message: str, *, hint: str, evidence: str
+) -> Finding:
+    return Finding(
+        code, node.lineno, node.col_offset + 1, node.name, message, evidence, hint=hint
+    )
+
+
+# A returned expression can be a whole constructor call. The message
+# needs enough of it to recognise, not all of it.
+_SHOWN_WIDTH = 40
+
+
+def _shown(value: ast.expr) -> str:
+    """`value` unparsed, cut to a recognisable length."""
+    text = ast.unparse(value)
+    return text if len(text) <= _SHOWN_WIDTH else text[: _SHOWN_WIDTH - 1] + "…"
 
 
 def _last_name(node: ast.AST) -> str:

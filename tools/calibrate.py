@@ -170,7 +170,7 @@ def _measure(project: Project) -> tuple[list[dict], int]:
         return [], 0
     found = [
         json.loads(line)
-        for line in _namelint(["--json", *targets]).splitlines()
+        for line in _namelint(["--output-format", "json", *targets]).splitlines()
         if line.strip()
     ]
     functions = functions_from_stats(_namelint(["--stats", *targets]))
@@ -192,7 +192,15 @@ def _namelint(args: list[str]) -> str:
     failure recorded as "no findings" would read as a perfect score.
     """
     result = subprocess.run(  # noqa: S603
-        [sys.executable, "-m", "namelint", "--no-allowlist", *SELECT_ALL, *args],
+        [
+            sys.executable,
+            "-m",
+            "namelint",
+            "check",
+            "--no-allowlist",
+            *SELECT_ALL,
+            *args,
+        ],
         check=False,
         capture_output=True,
         text=True,

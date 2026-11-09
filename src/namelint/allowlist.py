@@ -2,11 +2,11 @@
 
 Each key is a code, each value a list of names: a function name, or
 `Class.method`, either with shell wildcards (`close_to_*`). This module
-reads it, matches findings against it, and writes it back for
-`namelint init` and `namelint allow`.
+matches findings against it, and writes it back for `namelint init`
+and `namelint allow`. `config.py` reads it.
 
-There is no TOML writer in the standard library, and a runtime
-dependency is out (notes/02-specs.md §7). So writing replaces the text
+There is no TOML writer in the standard library, and the only runtime
+dependency is the command line's (notes/02-specs.md §7). So writing replaces the text
 of the `[tool.namelint.allow]` table and nothing else: every other line
 of `pyproject.toml` is left byte for byte as it was.
 """
@@ -15,71 +15,50 @@ from __future__ import annotations
 
 import json
 import re
-import tomllib
 from fnmatch import fnmatchcase
 from typing import TYPE_CHECKING
 
-from namelint.checks import CODES
+from namelint import config as settings
+from namelint.config import Allowlist, ConfigError
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
     from pathlib import Path
 
     from namelint.finding import Finding
 
-CONFIG = "pyproject.toml"
 HEADER = "[tool.namelint.allow]"
 
 _HEADER_LINE = re.compile(r"^\[tool\.namelint\.allow\][ \t]*(#.*)?$", re.MULTILINE)
 _NEXT_TABLE = re.compile(r"^[ \t]*\[", re.MULTILINE)
 
-Allowlist = dict[str, list[str]]
-
-
-class ConfigError(Exception):
-    """The allowlist in `pyproject.toml` is not what namelint reads."""
-
-    def __init__(self, config: Path, problem: str) -> None:
-        super().__init__(f"{config}: {problem}")
-
-
-def find_config(start: Path) -> Path | None:
-    """The `pyproject.toml` in `start` or its nearest parent, if any."""
-    for directory in (start, *start.parents):
-        config = directory / CONFIG
-        if config.is_file():
-            return config
-    return None
-
-
-def load(config: Path | None) -> Allowlist | None:
-    """The validated allowlist in `config`, or None when it declares none.
-
-    None and `{}` differ: an empty table is an allowlist `namelint init`
-    already wrote, and must not write again.
-    """
-    if config is None:
-        return None
-    try:
-        table = tomllib.loads(config.read_text(encoding="utf-8"))
-    except tomllib.TOMLDecodeError as exc:
-        raise ConfigError(config, str(exc)) from exc
-    allow = table.get("tool", {}).get("namelint", {}).get("allow")
-    if allow is None:
-        return None
-    for code, names in allow.items():
-        if code not in CODES:
-            raise ConfigError(config, f"unknown code {code} in {HEADER}")
-        if not (isinstance(names, list) and all(isinstance(n, str) for n in names)):
-            raise ConfigError(config, f"{code} must be a list of names")
-    return allow
-
 
 def allowed(finding: Finding, allow: Allowlist) -> bool:
-    return any(
-        fnmatchcase(finding.qualname, pattern) or fnmatchcase(finding.name, pattern)
-        for pattern in allow.get(finding.code, ())
-    )
+    return any(_matches(finding, pattern) for pattern in allow.get(finding.code, ()))
+
+
+def pruned(
+    allow: Allowlist, findings: Sequence[Finding], selected: frozenset[str]
+) -> Allowlist:
+    """`allow` without the patterns that match none of `findings`.
+
+    A code that did not run says nothing about its patterns, so they stay.
+    A code left with no patterns is dropped.
+    """
+    kept = {
+        code: [
+            pattern
+            for pattern in patterns
+            if code not in selected
+            or any(f.code == code and _matches(f, pattern) for f in findings)
+        ]
+        for code, patterns in allow.items()
+    }
+    return {code: patterns for code, patterns in kept.items() if patterns}
+
+
+def _matches(finding: Finding, pattern: str) -> bool:
+    return fnmatchcase(finding.qualname, pattern) or fnmatchcase(finding.name, pattern)
 
 
 def merged(allow: Allowlist, findings: Iterable[Finding]) -> Allowlist:
@@ -102,7 +81,8 @@ def write(config: Path, allow: Allowlist) -> None:
     table = _render(allow)
     header = _HEADER_LINE.search(text)
     if header is None:
-        if text and load(config) is not None:
+        loaded = settings.load(config) if text else None
+        if loaded is not None and loaded.allow is not None:
             raise ConfigError(
                 config, f"allowlist is not a {HEADER} table; edit it by hand"
             )

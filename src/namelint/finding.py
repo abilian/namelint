@@ -26,6 +26,9 @@ class Finding:
     name: str
     message: str
     evidence: str = ""
+    # What to do about it, kept apart from the message so a terminal
+    # report can show it on its own line, or leave it out.
+    hint: str = ""
     # The enclosing class, set by the visitor, so an allowlist entry can
     # say `User.user_name` rather than every `user_name` in the tree.
     owner: str | None = None
@@ -36,7 +39,7 @@ class Finding:
 
     def rendered(self, path: str) -> str:
         """Render the one-line form every editor already parses."""
-        return f"{path}:{self.line}:{self.col}: {self.code} {self.message}"
+        return f"{path}:{self.line}:{self.col}: {self.code} {self.message}; {self.hint}"
 
 
 @dataclass(frozen=True)

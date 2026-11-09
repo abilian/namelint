@@ -10,28 +10,54 @@ It holds no opinion about vocabulary. "Too generic", "too long", "prefer a domai
 
 ```sh
 uv tool install namelint     # on PATH, globally
-uvx namelint src/            # or without installing anything
+uvx namelint check src/      # or without installing anything
 pip install namelint
 ```
 
-No runtime dependencies. That is a constraint the project accepted on purpose: a linter you hesitate to add because of what it drags in never gets added. Python 3.12 or newer.
+Its one runtime dependency is [Cyclopts](https://cyclopts.readthedocs.io/), for the command line. The checks themselves import nothing beyond `ast`. Python 3.12 or newer.
 
 ## Use
 
 ```sh
-namelint src/                          # lint a tree
-namelint src/app/users.py              # or one file
-namelint --select NAM106 src/          # one check only (repeatable)
-namelint --ignore NAM108 src/          # everything but one (repeatable)
-namelint --json src/                   # one JSON object per line
-namelint --stats src/                  # counts per check, with a rate
-namelint --no-allowlist src/           # report everything, allowlist or not
-namelint init                          # add an empty allowlist to pyproject.toml
-namelint init --accept-existing        # ...holding every current finding
-namelint allow --select NAM108 src/    # accept the current findings of one check
+namelint check                                # lint the current directory
+namelint check src/app/users.py               # or one file
+namelint check --select NAM106 src/           # one check only (repeatable)
+namelint check --ignore NAM108 src/           # everything but one (repeatable)
+namelint check --output-format full src/      # add a hint under each finding
+namelint check --output-format concise src/   # one line per finding, for editors and CI
+namelint check --output-format json src/      # one JSON object per line
+namelint check --output-format github src/    # annotations in a GitHub Actions log
+namelint check --stats src/                   # counts per check, with a rate
+namelint check --no-allowlist src/            # report everything, allowlist or not
+namelint check --exit-zero src/               # report findings, exit 0 anyway
+namelint check --show-settings                # the settings in force, and their file
+namelint init                                 # add [tool.namelint] to pyproject.toml
+namelint init --accept-existing               # ...and accept every current finding
+namelint allow --select NAM108 src/           # accept the current findings of one check
+namelint allow --prune                        # ...and drop entries that match nothing
+namelint explain                              # the naming conventions, explained
+namelint explain NAM106 --level junior        # one check: junior, senior or expert
 ```
 
-Output is the one line every editor and CI annotator already parses:
+By default, findings are grouped under their file:
+
+```
+src/app/users.py
+  42:5   NAM106  get_user performs I/O (calls httpx.get)
+  108:1  NAM104  set_env_vars reads as a command but returns (count, skipped)
+
+2 findings in 1 file
+```
+
+`--output-format full` adds what to do about each finding on the line below it:
+
+```
+src/app/users.py
+  42:5   NAM106  get_user performs I/O (calls httpx.get)
+                 hint: get_ promises a cheap lookup, use fetch_, load_ or read_
+```
+
+`--output-format concise` prints the one line every editor and CI annotator already parses, hint included:
 
 ```
 src/app/users.py:42:5: NAM106 get_user performs I/O (calls httpx.get); get_ promises a cheap lookup, use fetch_, load_ or read_
@@ -42,7 +68,7 @@ Exit codes: **0** clean, **1** findings, **2** namelint itself failed. A file it
 `--stats` serves calibration. It reports per thousand functions, so two codebases of different sizes can be compared. Nested functions are not checked, so they are not counted either:
 
 ```
-$ namelint --stats ~/src/cpython/Lib
+$ namelint check --stats ~/src/cpython/Lib
 functions scanned: 51726
   NAM101      17     0.33 per 1000
   NAM102       3     0.06 per 1000
@@ -192,6 +218,50 @@ Silent on:
 
 This is the check that most needs the allowlist. A user name is not the same thing as a user's name, and `Style.background_style` returns a different style. Only the author knows which repeat is a slip.
 
+## In CI and pre-commit
+
+In a GitHub Actions workflow, `--output-format github` turns each finding into an annotation on the pull request's diff:
+
+```yaml
+- run: uvx namelint check --output-format github
+```
+
+For [pre-commit](https://pre-commit.com/), add the hook to `.pre-commit-config.yaml`:
+
+```yaml
+- repo: https://github.com/abilian/namelinter
+  rev: v0.3.0
+  hooks:
+    - id: namelint
+```
+
+The hook runs `namelint check --force-exclude`. pre-commit names each file it passes, and `--force-exclude` keeps the `exclude` patterns in force for named files.
+
+## Configuration
+
+namelint takes `[tool.namelint]` from the `pyproject.toml` in the current directory or its nearest parent. `namelint init` writes the table with every setting at its default:
+
+```toml
+[tool.namelint]
+# select = ["NAM101", "NAM102", "NAM103", "NAM104", "NAM105", "NAM106", "NAM108"]
+ignore = []
+exclude = []
+per-file-ignores = {}
+respect-gitignore = true
+output-format = "grouped"
+```
+
+- `select` lists the checks to run. Without it, every check runs except the opt-in `NAM107`.
+- `ignore` lists checks to skip.
+- `exclude` lists shell patterns for paths to skip. They add to the directories always skipped (`.git`, `.venv`, `venv`, `__pycache__`, `node_modules`, `.tox`, `.nox`, `build`, `dist`). A file named on the command line is linted even when a pattern matches it, unless `--force-exclude` is given.
+- `per-file-ignores` maps a path pattern to the checks to skip in matching files: `{ "migrations/*" = ["NAM108"] }`.
+- `respect-gitignore` skips what git ignores, using `git ls-files`. Outside a git repository, or without git, namelint walks all directories.
+- `output-format` is `grouped`, `full`, `concise`, `json` or `github`.
+
+A path pattern is matched against each part of a path. It is also matched against the whole path, taken relative to the directory holding `pyproject.toml`. So `migrations/*` means the same from any working directory.
+
+On the command line, `--select` replaces the configured list, `--ignore` adds to it, and `--output-format` replaces the configured format. An unknown key, an unknown code or a value of the wrong type is an error, with exit code 2, so a typo can't pass for a setting that was applied.
+
 ## Allowlist
 
 When a finding is a legitimate use of an ambiguous name, list the name under its code in `pyproject.toml`:
@@ -202,12 +272,12 @@ NAM104 = ["update_width", "close_to_*"]
 NAM108 = ["User.user_name", "Style.*_style"]
 ```
 
-An entry matches a function name or `Class.method`, with shell wildcards. It covers only the code it sits under. namelint reads the `pyproject.toml` in the current directory or its nearest parent. An unknown code or a malformed entry is an error, with exit code 2. `--json` prints each finding's `qualname`, ready to paste.
+An entry matches a function name or `Class.method`, with shell wildcards. It covers only the code it sits under. namelint reads the `pyproject.toml` in the current directory or its nearest parent. An unknown code or a malformed entry is an error, with exit code 2. `--output-format json` prints each finding's `qualname`, ready to paste.
 
 Two commands write the allowlist for you:
 
-- `namelint init` adds an empty `[tool.namelint.allow]` table and nothing else. It refuses to run if the table already exists. With `--accept-existing` it fills the table with every current finding, which is how to adopt namelint on an existing codebase: the next run is clean, and only new code gets reported.
-- `namelint allow` adds the current findings to the allowlist, keeping what is there. Narrow it with `--select`/`--ignore` and paths, and review the diff before committing.
+- `namelint init` adds a `[tool.namelint]` table with every setting at its default, and an empty `[tool.namelint.allow]`. It refuses to run if namelint is already configured. With `--accept-existing` it fills the allowlist with every current finding, which is how to adopt namelint on an existing codebase: the next run is clean, and only new code gets reported.
+- `namelint allow` adds the current findings to the allowlist, keeping what is there. Narrow it with `--select`/`--ignore` and paths, and review the diff before committing. With `--prune` it also removes the entries that no longer match any finding, so the allowlist shrinks as names get fixed. Run `--prune` over the whole project, since an entry for code outside the given paths looks unused. Entries for checks that did not run are kept.
 
 Both lint the given paths (the current directory by default) and record each finding as `Class.method` or a bare function name.
 

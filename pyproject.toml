@@ -1,6 +1,6 @@
 [project]
 name = "namelint"
-version = "0.2.0"
+version = "0.3.0.dev1"
 description = "Reports where a Python function's name contradicts its body."
 readme = "README.md"
 license = "Apache-2.0"
@@ -17,10 +17,12 @@ classifiers = [
     "Typing :: Typed",
 ]
 
-# No runtime dependencies, and that is a design constraint rather than an
-# accident: see notes/02-specs.md §7. The verb table is a build-time
-# artefact shipped as package data.
-dependencies = []
+# Cyclopts for the command line, and nothing else: see notes/02-specs.md
+# §7. The checks themselves import only `ast`. The verb table is a
+# build-time artefact shipped as package data.
+dependencies = [
+    "cyclopts>=5.4.0",
+]
 
 [project.scripts]
 namelint = "namelint.cli:main"
@@ -41,6 +43,7 @@ dev = [
     "pytest-cov>=7.1.0",
     "ruff>=0.14",
     "ty>=0.0.84",
+    "zuban>=0.10.2",
 ]
 
 [build-system]
@@ -75,6 +78,12 @@ addopts = "--import-mode=importlib"
 markers = [
     "unit: fast, isolated, no I/O",
     "integration: component interactions, file I/O",
+]
+
+[tool.pyrefly]
+project-includes = [
+    "**/*.py*",
+    "**/*.ipynb",
 ]
 
 # Ruff is configured in `ruff.toml`, which supersedes a `[tool.ruff]`
