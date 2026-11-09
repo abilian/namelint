@@ -1,0 +1,96 @@
+# namelint documentation - Zensical configuration
+
+[project]
+
+site_name = "namelint"
+site_description = "Reports where a Python function's name contradicts its body"
+site_author = "Abilian SAS"
+
+# src/checks/ and src/changelog.md are copied in by `make preprocess`.
+docs_dir = "src"
+site_dir = "site"
+
+repo_url = "https://github.com/abilian/namelinter"
+edit_uri = "edit/main/docs/src"
+
+copyright = """
+Copyright &copy; 2026 Abilian SAS
+"""
+
+nav = [
+    { "Home" = [
+        { "Overview" = "index.md" },
+        { "Getting Started" = "getting-started.md" },
+    ]},
+    { "Guide" = [
+        { "Running Checks" = "running-checks.md" },
+        { "Configuration" = "configuration.md" },
+        { "Allowlist" = "allowlist.md" },
+        { "CI and pre-commit" = "ci.md" },
+    ]},
+    { "Checks" = [
+        { "The Conventions" = "checks/conventions.md" },
+        { "NAM101: test that never runs" = "checks/NAM101.md" },
+        { "NAM102: property named like a command" = "checks/NAM102.md" },
+        { "NAM103: predicate that isn't a bool" = "checks/NAM103.md" },
+        { "NAM104: command that returns a value" = "checks/NAM104.md" },
+        { "NAM105: query that returns nothing" = "checks/NAM105.md" },
+        { "NAM106: get_ that performs I/O" = "checks/NAM106.md" },
+        { "NAM107: generator under a non-lazy name" = "checks/NAM107.md" },
+        { "NAM108: method that repeats its class" = "checks/NAM108.md" },
+    ]},
+    { "Reference" = [
+        { "Calibration" = "calibration.md" },
+        { "As a Library" = "library.md" },
+        { "Changelog" = "changelog.md" },
+    ]},
+]
+
+[project.theme]
+
+variant = "modern"
+language = "en"
+
+features = [
+    "content.action.edit",
+    "content.action.view",
+    "content.code.copy",
+    "navigation.footer",
+    "navigation.instant",
+    "navigation.path",
+    "navigation.sections",
+    "navigation.tabs",
+    "navigation.top",
+    "navigation.tracking",
+    "search.highlight",
+    "toc.follow",
+]
+
+[[project.theme.palette]]
+scheme = "default"
+primary = "indigo"
+accent = "purple"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "indigo"
+accent = "purple"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"
+
+[project.theme.font]
+text = "Roboto"
+code = "Roboto Mono"
+
+# Lucide has no brand icons, so the repository link uses FontAwesome's.
+[project.theme.icon]
+repo = "fontawesome/brands/github"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/abilian/namelinter"
+
+[project.plugins]
+search = { enabled = true }

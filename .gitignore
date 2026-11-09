@@ -17,3 +17,9 @@ wheels/
 
 # Calibration corpus: nine cloned repositories, refetched by tools/calibrate.py
 /corpus/
+
+# Documentation: the built site, and the pages docs/Makefile copies in
+/docs/site/
+/docs/src/checks/
+/docs/src/changelog.md
+.hop3-local.toml

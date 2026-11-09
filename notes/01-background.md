@@ -1,6 +1,6 @@
-# Naming functions: rules to apply now, and a linter that might check them
+# Naming functions: rules to apply now and a linter that might check them
 
-Prompted by "The Naming Algorithm" (a Medium post with a decision tree and a verb blacklist). The tree is one practitioner's taste. A few of its calls are wrong for Python. What follows keeps only the parts that clean Python codebases already enforce, then asks which of those a tool could check.
+Prompted by "The Naming Algorithm" (a Medium post with a decision tree and a verb blacklist). The tree is one practitioner's taste. Some of the calls in it are wrong for Python. What follows keeps only the parts that clean Python codebases already enforce, then asks which of those a tool could check.
 
 Two things this note is careful about. It does not duplicate what `ruff` already does. And it separates a rule from its detector: several rules below are sound and have no safe automatic check. That puts them in a playbook. It does not drop them.
 
@@ -10,13 +10,13 @@ Nine rules. Each is conventional in Python, each has a reference point in the st
 
 ### 1. A function is a verb phrase. A class is a noun phrase.
 
-`parse_config`, `send_invoice`, `Invoice`, `ConfigParser`. A function named `user_data()` reads as a variable at the call site. A class named `Validate` reads as a function.
+`parse_config`, `send_invoice`, `Invoice`, `ConfigParser`. At the call site, a function called `user_data()` looks like a variable. A class called `Validate` looks like a function.
 
-Reference: PEP 8, plus every major style guide. The convention is universal enough that a violation usually signals a missing abstraction, where a mere naming slip would be the smaller problem.
+PEP 8 and the major style guides all state it. The convention is universal enough that a violation usually signals a missing abstraction, where a mere naming slip would be the smaller problem.
 
 ### 2. A `@property` is a noun, with no verb.
 
-`circle.area`, never `circle.calculate_area`. A property exists so the caller can forget that work happens; a verb in the name puts the work back in view.
+`circle.area`, where `circle.calculate_area` would be a method. A property exists so the caller can forget that work happens; a verb in the name puts the work back in view.
 
 Reference: the standard library throughout (`datetime.year`, `Path.parent`, `Exception.args`).
 
@@ -28,7 +28,7 @@ Reference: `str.isdigit`, `Path.exists`, `inspect.isclass`. The form `check_if_t
 
 ### 4. A test function is `test_*`, because pytest says so.
 
-This is no style rule. A test function outside the `test_*` pattern is never collected, so it never runs. A suite reporting green over it reports nothing. Treat a violation as a defect, never as a preference.
+This is no style rule. pytest doesn't collect a test function outside the `test_*` pattern, so it doesn't run. A suite reporting green over it reports nothing. Treat a violation as a defect.
 
 Reference: pytest's default `python_functions = test*`.
 
@@ -42,7 +42,7 @@ Reference: the `sort`/`sorted` pair is the canonical Python example.
 
 ### 6. The name must not lie about cost.
 
-A name promising a cheap lookup must not open a socket. This is the one real insight in the source post, stated without its mistake. The problem with its `get_user` was never that `get` is vague. It was that `get` **promises cheap and total** while the function did a database round trip.
+A name promising a cheap lookup must not open a socket. This is the one real insight in the source post, minus the mistake. The trouble with the post's `get_user` was never that `get` is vague. It was that `get` **promises cheap and total** while the function did a database round trip.
 
 So keep `get_` for cheap total accessors, in line with `dict.get`, `getattr` and `os.environ.get`. Require a different verb once the body does I/O: `fetch_` over a network, `load_` or `read_` from disk, `save_`, `write_` or `send_` outward.
 
@@ -52,7 +52,7 @@ Reference: `dict.get` and `os.environ.get` are the contract. `requests.get` is t
 
 `User.get_user_name()` inside class `User` repeats what the receiver already said. Prefer `user.name` or `user.get_name()`.
 
-Reference: Go's style guide states this most directly. Python practice follows it, as in `Path.name`, never `Path.get_path_name`.
+Go's style guide states this most directly. Python practice follows it, as in `Path.name`.
 
 ### 8. A generator announces that it is lazy.
 
@@ -64,7 +64,7 @@ Reference: `dict.items`, `os.walk`, `itertools` throughout.
 
 `data`, `info`, `stuff`, `helper`, `util`, `manager`, `object`: none says anything alone. `process_data()` names its argument twice and its work zero times.
 
-Reference: the one rule here taken straight from *Clean Code*. It is also the first I would weaken if it proves noisy. Compounds are often fine (`UserManager` in a codebase with a manager layer); the bare noun rarely is.
+This is the one rule here taken straight from *Clean Code*. It is also the first I would weaken if it proves noisy. Compounds are often fine (`UserManager` in a codebase with a manager layer); the bare noun rarely is.
 
 ### What `ruff` already enforces
 
@@ -72,7 +72,7 @@ No point rebuilding these. `pep8-naming` (N801 to N818) covers case conventions,
 
 ### What we are not taking from the source post
 
-Its blacklist bans `compare`, `main` and `run`. But `compare` is the precise name for a three-way comparison, the kind `functools.cmp_to_key` consumes. `main` is required by `if __name__ == "__main__":`. And `run` is a protocol name on a runner object (`subprocess.run`, `Thread.run`). Banning any of the three produces false positives in every codebase.
+The post's blacklist bans `compare`, `main` and `run`. But `compare` is the precise name for a three-way comparison, the kind `functools.cmp_to_key` consumes. `main` is required by `if __name__ == "__main__":`. And `run` is a protocol name on a runner object (`subprocess.run`, `Thread.run`). Banning any of the three produces false positives in every codebase.
 
 The post also blacklists `handle`, while `ken-python/coding-guidelines.md` recommends `handle_` for event handlers. We keep `handle_` on a dispatch surface, where the protocol sets the name.
 
@@ -93,7 +93,7 @@ The useful check is never "is this verb on a list". That is a grep. A grep over 
 | generator under a non-lazy name | 8 | `yield` in the body |
 | method repeating its class name | 7 | `ClassName` appears in the method name |
 
-Eight checks, each a few lines of `ast` walking. Each one reports a mismatch in the code; none offers an opinion about vocabulary.
+Each of the eight checks takes a few lines of `ast` walking and reports a mismatch in the code. None offers an opinion about vocabulary.
 
 ### Tier 2: lower confidence, reported as `inspect`
 
@@ -101,15 +101,15 @@ Four cases: mutation under a non-mutating verb, `parse_` taking no string, `rend
 
 ### Tier 3: no detector
 
-Rules 1 and 9 in their general form. A playbook entry, read while naming.
+Rules 1 and 9, in their general form, have no detector. They stay in the playbook, to read while naming.
 
 ### Shape
 
-A self-standing PEP 723 script, `namelinter.py`, the way `proselinter.py` began. No install step, runnable against any checkout, one `ast.NodeVisitor`. It finds a home in `ken` later if the measurement justifies one, since naming is code quality and `letscode_ken.autocheck` already runs over every file the model writes.
+The first version is a self-standing PEP 723 script, `namelinter.py`, the way `proselinter.py` began. It needs no install step, runs against any checkout, and holds one `ast.NodeVisitor`. It finds a home in `ken` later if the measurement justifies one, since naming is code quality and `letscode_ken.autocheck` already runs over every file the model writes.
 
 ## Part 3. Calibrating against clean code
 
-The step that decides whether any of this ships. **A rule firing often on a reputable codebase is a wrong rule. It is no evidence about the codebase.** The prose linter learned this the hard way, which is why `proselinter --calibrate` exists.
+This step decides whether any of this ships. **A rule firing often on a reputable codebase is a wrong rule. It is no evidence about the codebase.** The prose linter learned this the hard way, which is why `proselinter --calibrate` exists.
 
 Proposed corpus, chosen for being well reviewed and stylistically unlike each other:
 
@@ -129,12 +129,12 @@ Method:
 3. Any rule above roughly two false positives in thirty either gets a narrower detector or drops to Tier 2.
 4. Keep the adjudication, so a later change to a detector is measured against the same sample instead of a fresh impression.
 
-Four predictions, written down now so the measurement can embarrass them:
+Here are four predictions, written down now so the measurement can embarrass them:
 
 - Rule 4 should find almost nothing in `pytest`, and may find real dead tests elsewhere.
 - Rule 6 will fire on `requests.get` and its relatives, where `get` is the HTTP verb. That needs an exception for a module whose domain is HTTP.
 - Rule 7 will fire on legitimate disambiguation (`Config.config_path`), and may not hold up as a Tier 1 check.
-- Rule 3's inverse arm (a bool return under a non-predicate name) is the one I expect to be noisiest, because `main() -> bool` and its like are ordinary.
+- Rule 3's inverse arm (a bool return under a non-predicate name) is the one I expect to be noisiest, because `main() -> bool` and similar functions are ordinary.
 
 ## Open questions
 

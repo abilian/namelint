@@ -43,6 +43,7 @@ dev = [
     "pytest-cov>=7.1.0",
     "ruff>=0.14",
     "ty>=0.0.84",
+    "zensical>=0.1.0",
     "zuban>=0.10.2",
 ]
 

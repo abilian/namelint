@@ -1,0 +1,15 @@
+# namelint documentation site
+# Deploy with: make deploy
+
+[metadata]
+id = "namelint-docs"
+title = "namelint Documentation"
+description = "Documentation for namelint, a linter for Python names"
+
+[build]
+toolchain = "static"
+static-dir = "site"
+ignore = ["src"]
+
+[env]
+HOST_NAME = "namelint.lab.abilian.com"

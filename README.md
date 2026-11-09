@@ -2,7 +2,7 @@
 
 Reports where a Python function's **name contradicts its body**.
 
-`ruff` already knows that `getUserName` is not `snake_case`. Nothing knows that `get_user` opens a socket, that `collect_entry` is a generator no caller can iterate twice, or that `check_user_is_valid` sits in a test module making claims pytest will never collect. That gap is this tool's subject. Every check needs the AST; none is a grep over identifiers.
+`ruff` already knows that `getUserName` is not `snake_case`. No linter knows that `get_user` opens a socket, that `collect_entry` is a generator no caller can iterate twice, or that `check_user_is_valid` sits in a test module making claims pytest will never collect. That gap is this tool's subject. Every check needs the AST; none is a grep over identifiers.
 
 It holds no opinion about vocabulary. "Too generic", "too long", "prefer a domain term" belong in a style guide and in code review. namelint reports only that a name and the code under it disagree, naming the fact that made them disagree, so the fact is what you argue with.
 
@@ -14,7 +14,7 @@ uvx namelint check src/      # or without installing anything
 pip install namelint
 ```
 
-Its one runtime dependency is [Cyclopts](https://cyclopts.readthedocs.io/), for the command line. The checks themselves import nothing beyond `ast`. Python 3.12 or newer.
+Its one runtime dependency is [Cyclopts](https://cyclopts.readthedocs.io/), for the command line. The checks themselves import only `ast`. Python 3.12 or newer.
 
 ## Use
 
@@ -49,7 +49,7 @@ src/app/users.py
 2 findings in 1 file
 ```
 
-`--output-format full` adds what to do about each finding on the line below it:
+`--output-format full` adds a hint below each reported line:
 
 ```
 src/app/users.py
@@ -57,7 +57,7 @@ src/app/users.py
                  hint: get_ promises a cheap lookup, use fetch_, load_ or read_
 ```
 
-`--output-format concise` prints the one line every editor and CI annotator already parses, hint included:
+`--output-format concise` prints the one-line format that editors and CI annotators already parse, hint included:
 
 ```
 src/app/users.py:42:5: NAM106 get_user performs I/O (calls httpx.get); get_ promises a cheap lookup, use fetch_, load_ or read_
@@ -85,7 +85,7 @@ All eight specified checks are implemented. Each entry gives what the check repo
 
 ### `NAM101`: a test that will never run
 
-Reports a function in a test module that contains an assertion, takes no arguments, and is not named `test*`. pytest collects `test*` and nothing else, so the function reports nothing. A suite that stays green over it says nothing about the code it claims to cover.
+Reports a function in a test module that contains an assertion, takes no arguments, and is not named `test*`. pytest collects only `test*`, so pytest skips the function. A suite that stays green over it proves nothing about the code it claims to cover.
 
 ```python
 # tests/test_users.py
@@ -135,7 +135,7 @@ The check reads annotations and return shapes, and does no type inference, so an
 - `-> Any` or `-> object`, which put the uncertainty in the annotation.
 - `-> TypeGuard[X]` and `-> TypeIs[X]`, which do return a bool; the subscript says what it proves.
 - `return None`, which is how half the predicates ever written take an early exit.
-- a name whose last word also names the returned type, which makes it a factory: `is_instance_schema(cls) -> IsInstanceSchema` builds an "is-instance" schema. Whole words only, so `is_valid() -> ValidationResult` keeps its finding.
+- a name whose last word also names the returned type, which makes it a factory: `is_instance_schema(cls) -> IsInstanceSchema` builds an "is-instance" schema. Whole words only, so `is_valid() -> ValidationResult` is still reported.
 - a `check_` annotated `-> None`, which answers by raising.
 
 ### `NAM104` and `NAM105`: what the verb promises about the return
@@ -173,7 +173,7 @@ def get_user(uid):  # NAM106 — calls httpx.get
     return httpx.get(f"/u/{uid}").json()
 ```
 
-It fires on `open`, `Path.read_*`/`write_*`, `urlopen`, DBAPI `execute`/`fetchone`/`fetchall`, socket `recv`/`send`, and anything rooted at `requests`, `httpx`, `urllib`, `socket`, `subprocess` or `aiohttp`. The message suggests `fetch_`, `load_` or `read_`. `dict.get` and `getattr` are never the evidence.
+It fires on `open`, `Path.read_*`/`write_*`, `urlopen`, DBAPI `execute`/`fetchone`/`fetchall`, socket `recv`/`send`, and anything rooted at `requests`, `httpx`, `urllib`, `socket`, `subprocess` or `aiohttp`. The message suggests `fetch_`, `load_` or `read_`. `dict.get` and `getattr` don't count as evidence.
 
 ### `NAM107`: a generator under a non-lazy name
 
@@ -220,7 +220,7 @@ This is the check that most needs the allowlist. A user name is not the same thi
 
 ## In CI and pre-commit
 
-In a GitHub Actions workflow, `--output-format github` turns each finding into an annotation on the pull request's diff:
+In a GitHub Actions workflow, `--output-format github` prints annotations that GitHub shows on the pull request's diff:
 
 ```yaml
 - run: uvx namelint check --output-format github
@@ -239,7 +239,7 @@ The hook runs `namelint check --force-exclude`. pre-commit names each file it pa
 
 ## Configuration
 
-namelint takes `[tool.namelint]` from the `pyproject.toml` in the current directory or its nearest parent. `namelint init` writes the table with every setting at its default:
+namelint takes `[tool.namelint]` from the `pyproject.toml` in the current directory or the nearest parent. `namelint init` writes the table with the default settings:
 
 ```toml
 [tool.namelint]
@@ -264,7 +264,7 @@ On the command line, `--select` replaces the configured list, `--ignore` adds to
 
 ## Allowlist
 
-When a finding is a legitimate use of an ambiguous name, list the name under its code in `pyproject.toml`:
+When namelint reports a name that is ambiguous but legitimate, list it under the code that reported it, in `pyproject.toml`:
 
 ```toml
 [tool.namelint.allow]
@@ -272,14 +272,14 @@ NAM104 = ["update_width", "close_to_*"]
 NAM108 = ["User.user_name", "Style.*_style"]
 ```
 
-An entry matches a function name or `Class.method`, with shell wildcards. It covers only the code it sits under. namelint reads the `pyproject.toml` in the current directory or its nearest parent. An unknown code or a malformed entry is an error, with exit code 2. `--output-format json` prints each finding's `qualname`, ready to paste.
+An entry matches a function name or `Class.method`, with shell wildcards. It covers only the code it sits under. namelint reads the `pyproject.toml` in the current directory or the nearest parent. An unknown code or a malformed entry is an error, with exit code 2. `--output-format json` includes a `qualname` field, ready to paste.
 
 Two commands write the allowlist for you:
 
-- `namelint init` adds a `[tool.namelint]` table with every setting at its default, and an empty `[tool.namelint.allow]`. It refuses to run if namelint is already configured. With `--accept-existing` it fills the allowlist with every current finding, which is how to adopt namelint on an existing codebase: the next run is clean, and only new code gets reported.
-- `namelint allow` adds the current findings to the allowlist, keeping what is there. Narrow it with `--select`/`--ignore` and paths, and review the diff before committing. With `--prune` it also removes the entries that no longer match any finding, so the allowlist shrinks as names get fixed. Run `--prune` over the whole project, since an entry for code outside the given paths looks unused. Entries for checks that did not run are kept.
+- `namelint init` adds a `[tool.namelint]` table with the default settings, and an empty `[tool.namelint.allow]`. It refuses to run if namelint is already configured. With `--accept-existing` it fills the allowlist with what namelint reports today, which is how to adopt namelint on an existing codebase: the next run is clean, and only new code gets reported.
+- `namelint allow` adds the current findings to the allowlist, keeping what is there. Narrow it with `--select`/`--ignore` and paths, and review the diff before committing. With `--prune` it also removes the entries that no longer match anything reported, so the allowlist shrinks as names get fixed. Run `--prune` over the whole project, since an entry for code outside the given paths looks unused. Entries for checks that did not run are kept.
 
-Both lint the given paths (the current directory by default) and record each finding as `Class.method` or a bare function name.
+Both lint the given paths (the current directory by default) and record each reported function as `Class.method` or a bare function name.
 
 Both rewrite only the `[tool.namelint.allow]` table, sorted, so regenerating it gives a stable diff. Every other line of `pyproject.toml` is left as it was, but comments inside that table are lost. With no `pyproject.toml` anywhere up the tree, one is created in the current directory.
 
@@ -295,9 +295,9 @@ uv run tools/calibrate.py --only click    # one project
 uv run tools/calibrate.py --no-fetch      # re-measure after changing a detector
 ```
 
-It shallow-clones CPython's `Lib/`, attrs, pydantic, requests, httpx, rich, click, pytest and flask into `corpus/`, then writes `calibration/summary.md` (the table), `findings.jsonl` (every finding, so two runs can be diffed) and `sample.md` (a seeded random sample per check, with source lines, as checkboxes to adjudicate by hand). The sample is seeded on purpose: measuring a changed detector against a fresh sample measures the sample. Every row records the commit it came from, because a number with no commit behind it is a rumour.
+It shallow-clones CPython's `Lib/`, attrs, pydantic, requests, httpx, rich, click, pytest and flask into `corpus/`, then writes `calibration/summary.md` (the table), `findings.jsonl` (the full output, so two runs can be diffed) and `sample.md` (a seeded random sample per check, with source lines, as checkboxes to adjudicate by hand). The sample is seeded on purpose: measuring a changed detector against a fresh sample measures the sample. Every row records the commit it came from, because a number with no commit behind it is a rumour.
 
-The current run covers 71,274 functions and reports 437 findings, every check included:
+The current run covers 71,274 functions and reports 437 findings, `NAM107` included:
 
 | Project | NAM101 | NAM102 | NAM103 | NAM104 | NAM105 | NAM106 | NAM107 | NAM108 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -311,11 +311,11 @@ The current run covers 71,274 functions and reports 437 findings, every check in
 | pytest | 0.17 | 0.84 | 0.17 | 0.17 | 0.00 | 0.50 | **8.72** | 0.34 |
 | flask | 0.00 | 0.00 | 0.00 | 0.00 | 1.17 | 2.33 | 1.17 | 2.33 |
 
-The table counts findings per thousand functions, with no allowlist. rich's `NAM104` rate is its copy-and-update `ConsoleOptions` API; click's `NAM105` is its `format_help(ctx, formatter)` family, which writes into the formatter it is given. CPython is pinned to `v3.13.0`, since `main` uses syntax a 3.14 interpreter cannot parse; a run against `main` would measure the interpreter.
+The table counts findings per thousand functions, with no allowlist. rich's `NAM104` rate comes from the copy-and-update `ConsoleOptions` API; click's `NAM105` from the `format_help(ctx, formatter)` family, which writes into the formatter it is given. CPython is pinned to `v3.13.0`, since `main` uses syntax a 3.14 interpreter cannot parse; a run on `main` would measure the interpreter.
 
 ## As a library
 
-`lint_module(tree, path) -> list[Finding]` is also flake8's plugin contract, so a flake8 adapter needs an entry point and a wrapper, with no second copy of the checks. `checks.py` imports nothing beyond `ast` and two frozen records; the verb table reaches it through `Context`. It is a pure function of a node and a `Context`: it touches no filesystem and reads no configuration.
+`lint_module(tree, path) -> list[Finding]` is also flake8's plugin contract, so a flake8 adapter needs an entry point and a wrapper, with no second copy of the checks. `checks.py` imports only `ast` and the `Finding` and `Context` records; the verb table reaches it through `Context`. It is a pure function of a node and a `Context`: it touches no filesystem and reads no configuration.
 
 ```python
 import ast
@@ -326,7 +326,7 @@ for finding in lint_source("def get_user(u):\n    return httpx.get(u)\n", Path("
     print(finding.code, finding.name, finding.evidence)
 ```
 
-Every `Finding` has `code`, `line`, `col`, `name`, `message`, `evidence`, and `owner` (the enclosing class, if any). The `evidence` field names the fact that produced the finding: "calls `httpx.get`" is a fact you can dispute, "performs I/O" is not.
+A `Finding` has `code`, `line`, `col`, `name`, `message`, `evidence`, and `owner` (the enclosing class, if any). The `evidence` field names the fact behind the report: "calls `httpx.get`" is a fact you can dispute, "performs I/O" is not.
 
 There is no ruff plugin, because ruff has no plugin API.
 
@@ -343,7 +343,7 @@ make lint          # ruff check, ruff format --check, ty, pyrefly, mypy
 nox -s tests       # against 3.12, 3.13 and 3.14
 ```
 
-The design lives in two notes files:
+The design lives in the notes:
 
 - `notes/02-specs.md`: the reasoning behind each rule, the corpus design, the open questions.
 - `notes/01-background.md`: where the rules came from, and which candidates were dropped.
