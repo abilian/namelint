@@ -28,10 +28,10 @@ dependencies = [
 namelint = "namelint.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/abilian/namelinter"
-Repository = "https://github.com/abilian/namelinter"
-Issues = "https://github.com/abilian/namelinter/issues"
-Changelog = "https://github.com/abilian/namelinter/blob/main/CHANGES.md"
+Homepage = "https://github.com/abilian/namelint"
+Repository = "https://github.com/abilian/namelint"
+Issues = "https://github.com/abilian/namelint/issues"
+Changelog = "https://github.com/abilian/namelint/blob/main/CHANGES.md"
 
 [dependency-groups]
 dev = [

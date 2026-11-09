@@ -11,7 +11,7 @@ docs_dir = "src"
 site_dir = "site"
 site_url = "https://namelint.lab.abilian.com/"
 
-repo_url = "https://github.com/abilian/namelinter"
+repo_url = "https://github.com/abilian/namelint"
 edit_uri = "edit/main/docs/src"
 
 copyright = """
@@ -91,7 +91,7 @@ repo = "fontawesome/brands/github"
 
 [[project.extra.social]]
 icon = "fontawesome/brands/github"
-link = "https://github.com/abilian/namelinter"
+link = "https://github.com/abilian/namelint"
 
 [project.plugins]
 search = { enabled = true }
